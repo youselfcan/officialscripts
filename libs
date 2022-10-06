@@ -1,1 +1,1 @@
-['BuffLib', 'DamageLib', 'EasyScriptLib', 'Enums', 'ItemLib', 'MapPositions', 'ObjectLib', 'RuneLib', 'SpellLib', 'SupportLib', 'VectorCalculations']
+{'BuffLib': '1.00', 'DamageLib': '1.00', 'EasyScriptLib': '1.00', 'Enums': '1.00', 'ItemLib': '1.00', 'MapPositions': '1.00', 'ObjectLib': '1.00', 'RuneLib': '1.00', 'SpellLib': '1.00', 'SupportLib': '1.00', 'VectorCalculations': '1.00'}
