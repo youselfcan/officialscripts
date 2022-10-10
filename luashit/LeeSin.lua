@@ -23,7 +23,7 @@ function LeeSin:__init()
 	self.EDelay = 0
 	self.RDelay = 0
 
-	self.QHitChance = 0.2
+	self.QHitChance = 0.8
 
     self.ChampionMenu = Menu:CreateMenu("LeeSin")
 	-------------------------------------------
