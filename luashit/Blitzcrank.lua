@@ -12,12 +12,12 @@ function Blitzcrank:__init()
 
 	self.QWidth = 80
 
-	self.QDelay = 0.25 
+	self.QDelay = 0.25
 	self.WDelay = 0
 	self.EDelay = 0
 	self.RDelay = 0.25
 
-	self.QHitChance = 0.45
+	self.QHitChance = 0.75
 
     self.ChampionMenu = Menu:CreateMenu("Blitzcrank")
 	-------------------------------------------
@@ -66,7 +66,7 @@ function Blitzcrank:GetRDamage(Target)
 	local MissingHealth 			= Target.MaxHealth - Target.Health
 	local MagicResistMod			= 100 / (100 + Target.MagicResist)
 	local RLevel 					= myHero:GetSpellSlot(3).Level
-	local DMG 						= 125 + (125 * RLevel) + (myHero.AbilityPower * 1.0) 
+	local DMG 						= 125 + (125 * RLevel) + (myHero.AbilityPower * 1.0)
 	return DMG * MagicResistMod
 end
 
@@ -137,8 +137,8 @@ function Blitzcrank:OnLoad()
 
 
 	Blitzcrank:__init()
-	AddEvent("OnTick", function() Blitzcrank:OnTick() end)	
-	AddEvent("OnDraw", function() Blitzcrank:OnDraw() end)	
+	AddEvent("OnTick", function() Blitzcrank:OnTick() end)
+	AddEvent("OnDraw", function() Blitzcrank:OnDraw() end)
 end
 
-AddEvent("OnLoad", function() Blitzcrank:OnLoad() end)	
+AddEvent("OnLoad", function() Blitzcrank:OnLoad() end)
