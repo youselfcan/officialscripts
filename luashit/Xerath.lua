@@ -135,14 +135,25 @@ Xerath = {
 		end
 	end,
     Harass = function(self)
+		if self.ComboUseQ.Value == 1 then
+			local PredPos,Target  = Prediction:GetCastPos(myHero.Position, self.QRange_Max, self.QSpeed, self.QWidth, self.QDelay, 0, true, 1, 0)
+			if PredPos then
+				if self.QRange_Charged > 0 and self:GetDistance(myHero.Position, PredPos) < self.QRange_Charged then
+					return Engine:ReleaseSpell("HK_SPELL1", PredPos)
+				end
+				if self.QRange_Charged == 0 and Engine:SpellReady("HK_SPELL1") then
+					Engine:ChargeSpell("HK_SPELL1")	
+				end	
+			end
+		end
 		if self.HarassUseE.Value == 1 and Engine:SpellReady("HK_SPELL3") and Orbwalker.Attack == 0 then
-            local PredPos, Target = Prediction:GetCastPos(myHero.Position, self.ERange, self.ESpeed, self.EWidth, self.EDelay, 1, true, 0.5, 1)
+            local PredPos, Target = Prediction:GetCastPos(myHero.Position, self.ERange, self.ESpeed, self.EWidth, self.EDelay, 1, true, 0.6, 1)
             if PredPos and (Prediction:PointOnLineSegment(myHero.Position, Target.Position, PredPos, 200) or Prediction:PointOnLineSegment(myHero.Position, PredPos, Target.Position, 200)) then
 				return Engine:CastSpell("HK_SPELL3", PredPos, 0)
 			end
 		end
 		if self.HarassUseW.Value == 1 and Engine:SpellReady("HK_SPELL2") and Orbwalker.Attack == 0 then
-            local PredPos, Target = Prediction:GetCastPos(myHero.Position, self.WRange, self.WSpeed, self.WWidth, self.WDelay, 0, true, 0.35, 0)
+            local PredPos, Target = Prediction:GetCastPos(myHero.Position, self.WRange, self.WSpeed, self.WWidth, self.WDelay, 0, true, 0.5, 0)
 			if PredPos then
 				return Engine:CastSpell("HK_SPELL2", PredPos, 0)
 			end
