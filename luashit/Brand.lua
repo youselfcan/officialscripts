@@ -1,7 +1,7 @@
 require("SupportLib")
 
 Brand = {}
-function Brand:__init()	
+function Brand:__init()
 	self.QRange = 1040
 	self.WRange = 900
 	self.ERange = 620
@@ -15,13 +15,13 @@ function Brand:__init()
 	self.QWidth = 120
 	self.WWidth = 260
 
-	self.QDelay = 0.25 
+	self.QDelay = 0.25
 	self.WDelay = 0.875
 	self.EDelay = 0
 	self.RDelay = 0
 
-	self.QHitChance = 0.35
-	self.WHitChance = 0.4
+	self.QHitChance = 0.6
+	self.WHitChance = 0.6
 
 
     self.ChampionMenu = Menu:CreateMenu("Brand")
@@ -81,8 +81,8 @@ end
 
 function Brand:LoadSettings()
 	SettingsManager:GetSettingsFile("Brand")
-	
-	
+
+
 	-------------------------------------------
     self.UseQCombo.Value = SettingsManager:GetSettingsInt("QSettings","QCombo")
     self.UseQHarass.Value= SettingsManager:GetSettingsInt("QSettings","QHarass")
@@ -118,7 +118,7 @@ function Brand:GetQTargets()
 			if Time > 0.65 then
 				QTargets[#QTargets+1] = Enemy
 			end
-		end	
+		end
 	end
 	return SupportLib:SortList(QTargets, "HP")
 end
@@ -126,7 +126,7 @@ end
 function Brand:GetETargets()
 	local ETargets = SupportLib:GetEnemiesInRange(myHero.Position, self.ERange)
 	ETargets = SupportLib:SortList(ETargets, "HP")
-	
+
 	local Minions = ObjectManager.MinionList
 	for _,Minion in pairs(Minions) do
 		if Minion.IsTargetable and Minion.Team ~= myHero.Team and SupportLib:GetDistance(Minion.Position, myHero.Position) < self.ERange+Minion.CharData.BoundingRadius  then
@@ -206,7 +206,7 @@ function Brand:R()
 		end
 		local Target = RTargets[1]
 		if self.RSlider.Value > 0 and HeroCount >= self.RSlider.Value and Target then
-			return Engine:CastSpell("HK_SPELL4",Target.Position, 0)		
+			return Engine:CastSpell("HK_SPELL4",Target.Position, 0)
 		end
 	end
 end
@@ -220,7 +220,7 @@ end
 
 function Brand:OnTick()
 	self:ManageLastWPosition()
-    if GameHud.Minimized == false and GameHud.ChatOpen == false then	
+    if GameHud.Minimized == false and GameHud.ChatOpen == false then
 		if Engine:IsKeyDown("HK_COMBO") then
 			if self.UseQCombo.Value == 1 then
 				self:Q()
@@ -271,8 +271,8 @@ function Brand:OnLoad()
 
 
 	Brand:__init()
-	AddEvent("OnTick", function() Brand:OnTick() end)	
-	AddEvent("OnDraw", function() Brand:OnDraw() end)	
+	AddEvent("OnTick", function() Brand:OnTick() end)
+	AddEvent("OnDraw", function() Brand:OnDraw() end)
 end
 
-AddEvent("OnLoad", function() Brand:OnLoad() end)	
+AddEvent("OnLoad", function() Brand:OnLoad() end)
