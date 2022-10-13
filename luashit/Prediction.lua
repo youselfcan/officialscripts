@@ -1,5 +1,5 @@
 Prediction = {
-    Init = function(self) 
+    Init = function(self)
         self.KeyNames           = {}
         self.KeyNames[6] 		= "HK_ITEM1"
         self.KeyNames[7] 		= "HK_ITEM2"
@@ -18,9 +18,9 @@ Prediction = {
         self.DashSpell['Ziggs'] = {W = 0.25, WSpeed = 1750, WType = "AT"}
         self.DashSpell['Shaco'] = {Q = 0.125, QSpeed = math.huge, QType = "DT", R = 0.25, RSpeed = math.huge, RType = "BLOCK"}
         self.DashSpell['MasterYi'] = {Q = 0, QSpeed = math.huge, QType = "UT"}
-        
+
         --Direction-targeted:
-        
+
         self.DashSpell['Ezreal'] = {E = 0.25, ESpeed = math.huge, EType = "DT"}
         self.DashSpell['Aatrox'] = {E = 0, ESpeed = 1340, EType = "DT"}
         self.DashSpell['Caitlyn'] = {E = 0.15, ESpeed = 2200, EType = "DT"}
@@ -42,9 +42,9 @@ Prediction = {
         self.DashSpell['Viego'] = {W = 0, WSpeed = 1000, WType = "DT", E = 0, ESpeed = 750, EType = "DT"}
         self.DashSpell['Warwick'] = {R = 0.1, RSpeed = 2200, RType = "DT", Q = 0.2, QSpeed = 2200, QType = "AT"}
         self.DashSpell['Yone'] = {Q = 0.11, QSpeed = 1500, QType = "DT", E = 0, ESpeed = 1200, EType = "AT"}
-        
+
         --Location-Targeted:
-        
+
         self.DashSpell['Ahri'] = {R = 0, RSpeed = 1650, RType = "LT"}
         self.DashSpell['Akshan'] = {E = 0, ESpeed = 1200, EType = "DT"}
         self.DashSpell['Aurelion Sol'] = {E = 0, ESpeed = 800, EType = "LT"}
@@ -66,9 +66,9 @@ Prediction = {
         self.DashSpell['Shyvana'] = {R = 0.25, RSpeed = 2200, RType = "LT"}
         self.DashSpell['Tristana'] = {E = 0.25, ESpeed = 1100, EType = "LT"}
         self.DashSpell['Zac'] = {E = 0.2, ESpeed = 2200, EType = "LT"}
-        
+
         --Unit Targeted:
-        
+
         self.DashSpell['Katarina'] = {E = 0, ESpeed = math.huge, EType = "UT"}
         self.DashSpell['Akali'] = {R = 0, RSpeed = 3000, RType = "UT", E = 0, ESpeed = 1800, EType = "AT"}
         self.DashSpell['Alistar'] = {W = 0, WSpeed = 1600, WType = "UT"}
@@ -134,16 +134,16 @@ Prediction = {
         self.Menu:AddLabel("Only cast spells on ForceTarget if set:")
         self.ForceTargetOnly					= self.Menu:AddCheckbox("Enabled", 1)
         self.ReactionTime					    = self.Menu:AddSlider("ReactionTime:", 15, 1, 30, 1)
-        self.SetYourPing                        = self.Menu:AddSlider("Set your ping over what you have:", 30, 1, 200, 1)	
-        self.PredHitChance  					= self.Menu:AddSlider("Prediction HitChance:", 35, 0, 99, 1)	
+        self.SetYourPing                        = self.Menu:AddSlider("Set your ping over what you have:", 30, 1, 200, 1)
+        self.PredHitChance  					= self.Menu:AddSlider("Prediction HitChance:", 35, 0, 99, 1)
         self.PredictHitBox                      = self.Menu:AddCheckbox("HitBox Prediction", 1)
 	    self.AdvancedSettingsMenu               = self.Menu:AddSubMenu("Advanced Settings Menu")
         self.UseCachedTargetPrio                = self.AdvancedSettingsMenu:AddCheckbox("Enable Cached Enemy", 1)
-        self.CacheTimeForLastTarget             = self.AdvancedSettingsMenu:AddSlider("Seconds to stay on same target", 3, 1, 8, 1)	
+        self.CacheTimeForLastTarget             = self.AdvancedSettingsMenu:AddSlider("Seconds to stay on same target", 3, 1, 8, 1)
 
         self:LoadSettings()
     end,
-    SaveSettings = function(self) 
+    SaveSettings = function(self)
     	SettingsManager:CreateSettings			("Prediction")
 	    SettingsManager:AddSettingsGroup		("Settings")
         SettingsManager:AddSettingsInt			("ForceTargetOnly", self.ForceTargetOnly.Value)
@@ -156,7 +156,7 @@ Prediction = {
         SettingsManager:AddSettingsInt			("CacheTimeTarget", self.CacheTimeForLastTarget.Value)
 
     end,
-    LoadSettings = function(self) 
+    LoadSettings = function(self)
         SettingsManager:GetSettingsFile			("Prediction")
         self.ForceTargetOnly.Value              = SettingsManager:GetSettingsInt("Settings","ForceTargetOnly")
         self.PlayWithLockedCamOnSpace.Value     = SettingsManager:GetSettingsInt("Settings","PlayWithLockedCamOnSpace")
@@ -172,9 +172,9 @@ Prediction = {
         return math.max(0, math.sqrt((from.x - to.x) ^ 2 + (from.z - to.z) ^ 2) - 10)
     end,
     PointOnLineSegment = function(self, Start, End, Point, Radius)
-        local Dist1 = self:GetDistance(Start, End)      
-        local Dist2 = self:GetDistance(Start, Point)        
-        local Dist3 = self:GetDistance(Point, End)        
+        local Dist1 = self:GetDistance(Start, End)
+        local Dist2 = self:GetDistance(Start, Point)
+        local Dist3 = self:GetDistance(Point, End)
         if Dist2 > Dist1 or Dist3 > Dist1 then return false end
 
         if 	Point.x - math.max(Start.x, End.x) > Radius or
@@ -183,14 +183,14 @@ Prediction = {
             math.min(Start.z, End.z) - Point.z > Radius then
             return false
         end
-        
+
         if math.abs(End.x - Start.x) < Radius then
             return math.abs(Start.x - Point.x) < Radius or math.abs(End.x - Point.x) < Radius
         end
         if (math.abs(End.z - Start.z) < Radius) then
             return math.abs(Start.z - Point.z) < Radius or math.abs(End.z - Point.z) < Radius
         end
-        
+
         local x = Start.x + (Point.z - Start.z) * (End.x - Start.x) / (End.z - Start.z);
         local z = Start.z + (Point.x - Start.x) * (End.z - Start.z) / (End.x - Start.x);
 
@@ -207,7 +207,7 @@ Prediction = {
                 end
             end
         end
-        
+
         return false
     end,
     WillCollideWithMinionPrediction = function(self, Start, End, Speed, Delay, Width, BoundCheck)
@@ -228,7 +228,7 @@ Prediction = {
                 end
             end
         end
-        
+
         return false
     end,
     WillCollideWithHero = function(self, Start, End, MissileWidth, Target)
@@ -242,7 +242,7 @@ Prediction = {
                 end
             end
         end
-        
+
         return false
     end,
     GetAllEnemyHeros = function(self)
@@ -271,21 +271,21 @@ Prediction = {
 
         local Distance = math.sqrt((ToTargetVec.x * ToTargetVec.x) + (ToTargetVec.y * ToTargetVec.y) + (ToTargetVec.z * ToTargetVec.z))
         local VectorNorm = Vector3.new(ToTargetVec.x / Distance, ToTargetVec.y / Distance, ToTargetVec.z / Distance)
-        
+
         for Range = 25 , Distance, 25 do
             local CurrentPos = Vector3.new(PlayerPos.x + (VectorNorm.x*Range), PlayerPos.y + (VectorNorm.y*Range), PlayerPos.z + (VectorNorm.z*Range))
             if Engine:IsNotWall(CurrentPos) == false then
                 return false
             end
         end
-        
-        return true	
+
+        return true
     end,
     GetTargetItemKey = function(self, ItemName, Target)
         for i = 6 , 11 do
             local Slot = Target:GetSpellSlot(i)
             if Slot.Info.Name == ItemName then
-                return self.KeyNames[i] , Slot.Charges 
+                return self.KeyNames[i] , Slot.Charges
             end
         end
         return nil
@@ -295,9 +295,9 @@ Prediction = {
         local ZhonyasBuff = Target.BuffData:GetBuff("zhonyasringshield")
         local ZhonyasValid = ZhonyasBuff.Valid or ZhonyasBuff.Count_Alt > 0
 
-        if ZhonyasValid then 
+        if ZhonyasValid then
             --print("ZhonyasUsed?")
-            return false 
+            return false
         end
 
         for i = 6 , 11 do
@@ -392,8 +392,8 @@ Prediction = {
                 return Vector3.new(StartPos.x + (Norm.x*Mod), EndPos.y, StartPos.z + (Norm.z*Mod))
             end
         end
-        
-        return EndPos	
+
+        return EndPos
     end,
     --FEATURE FUNCTIONS
     GetMinionPrediction = function(self, Target, Start, Speed, Delay, Width, BoundCheck)
@@ -416,7 +416,7 @@ Prediction = {
             if AkshanSwing and AkshanSwing == true then
                 MovementSpeed = 1000
             end
-            
+
             if LastAction ~= nil and LastAction < Time2React then
                 LastActionTimer = Time2React - LastAction
             end
@@ -444,10 +444,10 @@ Prediction = {
 
                 local t1 = (-b + math.sqrt(discriminant)) / (2 * a)
                 local t2 = (-b - math.sqrt(discriminant)) / (2 * a)
-                
+
                 -- Greater of the two roots
                 t = t + math.max(t1, t2)
-            end  
+            end
 
             --------------------Path-Multiplier---------------------
             local PathMultiplier = 1
@@ -501,8 +501,8 @@ Prediction = {
             Time2Predict                = t
             PredictedPosition           = self:GetPointOnPath(Path, PredictModifier)
             if Speed < 3000 then
-                PredictedPosition.y         = Start.y 
-            end 
+                PredictedPosition.y         = Start.y
+            end
         end
         return PredictedPosition, Time2Predict
     end,
@@ -511,8 +511,8 @@ Prediction = {
         local TargetPos 	= Target.Position
         local TargetVec 	= Vector3.new(TargetPos.x - PathPos.x, TargetPos.y - PathPos.y, TargetPos.z - PathPos.z)
         local Length		= math.sqrt((TargetVec.x) ^ 2 + (TargetVec.y) ^ 2 + (TargetVec.z) ^ 2)
-        local TargetNorm 	= Vector3.new(TargetVec.x/Length , TargetVec.y/Length , TargetVec.z/Length) 
-        
+        local TargetNorm 	= Vector3.new(TargetVec.x/Length , TargetVec.y/Length , TargetVec.z/Length)
+
         local i 			= math.max(Target.CharData.BoundingRadius, Speed * Delay) * -1
         local EndPos 		= Vector3.new(TargetPos.x + (TargetNorm.x * i),TargetPos.y + (TargetNorm.y * i),TargetPos.z + (TargetNorm.z * i))
         return EndPos
@@ -530,7 +530,7 @@ Prediction = {
         local MagnitudeOfB2 = math.sqrt(BVecSquare2)
 
         local Beta = DotProductAxB2 / (MagnitudeOfB2 * MagnitudeOfA2)
-        
+
         local AngleOfB = math.acos(Beta)
         return AngleOfB
     end,
@@ -545,8 +545,8 @@ Prediction = {
         local TargetPos 	= Pos2Fix
         local TargetVec 	= Vector3.new(TargetPos.x - PathPos.x, TargetPos.y - PathPos.y, TargetPos.z - PathPos.z)
         local Length		= math.sqrt((TargetVec.x) ^ 2 + (TargetVec.y) ^ 2 + (TargetVec.z) ^ 2)
-        local TargetNorm 	= Vector3.new(TargetVec.x/Length , TargetVec.y/Length , TargetVec.z/Length) 
-        
+        local TargetNorm 	= Vector3.new(TargetVec.x/Length , TargetVec.y/Length , TargetVec.z/Length)
+
         local i 			= Adjustment
         local EndPos 		= Vector3.new(TargetPos.x + (TargetNorm.x * i),TargetPos.y + (TargetNorm.y * i),TargetPos.z + (TargetNorm.z * i))
         --print("WTF")
@@ -578,13 +578,13 @@ Prediction = {
                 return Time, CurrentPos, UnknownSide, HitAngle
             end
         end
-        
-        return nil	
+
+        return nil
     end,
     IsImmobile = function(self, Hero)
         local ImmobileBuffs = {}
         ImmobileBuffs[Hero.ChampionName] 	= {"Asleep", "Charm", "Fear", "Grounded", "Knockback", "Knockup", "Snare", "Stun", "Suppression", "Taunt"}
-    
+
         local PossibleBuffs = ImmobileBuffs[Hero.ChampionName]
         if PossibleBuffs then
             for i = 1, #PossibleBuffs do
@@ -593,18 +593,18 @@ Prediction = {
                 if Buff.Count_Alt > 0 and Buff.Valid == true then
                     return Buff.EndTime - GameClock.Time
                 end
-            end	
+            end
         end
-        
-        return nil	
+
+        return nil
     end,
-    GetHeroLevel = function(self, Hero) 
+    GetHeroLevel = function(self, Hero)
         local Q = Hero:GetSpellSlot(0).Level
         local W = Hero:GetSpellSlot(1).Level
         local E = Hero:GetSpellSlot(2).Level
         local R = Hero:GetSpellSlot(3).Level
         return Q + W + E + R
-    end,    
+    end,
     GetAttackSpeed = function(self, Hero)
         local AttackRange		    = Hero.AttackRange
         local AttackSpeedMod	    = Hero.AttackSpeedMod
@@ -635,14 +635,14 @@ Prediction = {
             return math.min(AttackSpeed, 1.5)
         end
 
-        return math.min(AttackSpeed, 2.5);    
+        return math.min(AttackSpeed, 2.5);
     end,
     GetHeroAttackDelay = function(self, Hero)
         local AttackSpeed = self:GetAttackSpeed(Hero)
         if Hero.ChampionName == "Graves" then
             return (1 / AttackSpeed) / 2
         end
-        return (1 / AttackSpeed)    
+        return (1 / AttackSpeed)
     end,
     GetHeroAttackWindup = function(self, Hero)
         local AttackTime 		    = self:GetHeroAttackDelay(Hero)
@@ -659,9 +659,9 @@ Prediction = {
                 AttackTimer[Hero.Index] = {
                     Object 		= Hero,
                     Timer		= os.clock(),
-                }	
+                }
             end
-            
+
             local Attacking = AttackTimer[Hero.Index]
             --print(Attacking)
             for _, Element in pairs(self.AttackTimer) do
@@ -674,7 +674,7 @@ Prediction = {
                         AttackTimer[Hero.Index] = {
                             Object 		= Hero,
                             Timer		= os.clock() + Info.Delay,
-                        }	
+                        }
                     else
                         if Hero.ActiveSpell.IsAutoAttack == true then
                             AttackTimer[Hero.Index] = {
@@ -713,7 +713,7 @@ Prediction = {
                 return true
             end
         end
-        return nil	
+        return nil
     end,
     IsAttacking = function(self, Target, NotThisSpell)
         --[[for _, Element in pairs(self.AttackTimer) do
@@ -743,7 +743,7 @@ Prediction = {
             if Target.ChampionName == "Warwick" or Target.ChampionName == "Shyvana" or Target.ChampionName == "Akali" or Target.ChampionName == "Evelynn" or Target.ChampionName == "RekSai" or Target.ChampionName == "Vi" then return nil end
             return RA * -1
         end
-        return nil	
+        return nil
     end,
     GetPredictionPosition = function(self, Target, Start, Speed, Delay, Width, Collision, BoundCheck, HitChancePrecentage, Linear)
         if self.Enabled == 0 then return nil, nil end
@@ -751,6 +751,7 @@ Prediction = {
         local ZhonyasBuff = Target.BuffData:GetBuff("zhonyasringshield")
         local ZhonyasTimer = nil
         local Zhonyas_Valid = ZhonyasBuff.Valid or ZhonyasBuff.Count_Alt > 0
+        local OpenPredPos = nil
 
         if Zhonyas_Valid then
             ZhonyasTimer = ZhonyasBuff.EndTime - GameClock.Time
@@ -773,8 +774,8 @@ Prediction = {
         if Linear == true or Linear == 1 then
             IsLinear = 1
         end
-            
-        
+
+
 
         if HitChancePrecentage ~= nil and HitChancePrecentage >= 1 then
             HitChanceOutside = HitChancePrecentage / 100
@@ -804,7 +805,7 @@ Prediction = {
             if Vis == false then
                 Time = Awareness:GetMapTimer(Target)
             end
-        
+
             local Path, AkshanSwing = self.Path[Target.Index], self.Swing[Target.Index]
             if Target.IsMinion then
                 Path = self:GetPath(Target)
@@ -819,7 +820,7 @@ Prediction = {
                 if AkshanSwing and AkshanSwing == true then
                     MovementSpeed = 1000
                 end
-                
+
                 if LastAction ~= nil and LastAction < Time2React then
                     LastActionTimer = Time2React - LastAction
                 end
@@ -849,16 +850,17 @@ Prediction = {
 
                         local t1 = (-b + math.sqrt(discriminant)) / (2 * a)
                         local t2 = (-b - math.sqrt(discriminant)) / (2 * a)
-                        
+
                         -- Greater of the two roots
                         t = t + math.max(t1, t2)
                     end
-                end  
+                end
                 ----------------------Test-Prediction-------------------------
-                if 0 == 1 then
+                if 1 == 1 then
                     local OpenPredMod = math.max(5, MovementSpeed * t)
-                    local OpenPredPos = self:GetPointOnPath(Path, OpenPredMod)
+                    OpenPredPos = self:GetPointOnPath(Path, OpenPredMod)
                     Render:DrawCircle(OpenPredPos, 50 ,0,255,0,255)
+
                 end
                 --------------------------------------------------------
                 --------------------Path-Multiplier---------------------
@@ -958,10 +960,10 @@ Prediction = {
                     AdjustMultiplier = 0
                 end
                 --print(AdjustMultiplier)
-                
+
                 local Adjustment            = ((Width / 2) + TargetBound) * AdjustMultiplier
                 if Adjustment > 0 and IsLinear == 1 then
-                    hitChance = hitChance + hitChance * ((Adjustment/MovementSpeed)/2) 
+                    hitChance = hitChance + hitChance * ((Adjustment/MovementSpeed)/2)
                 end
                 --print(HitChanceOutside)
                 --print("timing: ",t)
@@ -986,7 +988,7 @@ Prediction = {
                 --checkpoint
                 PredictedPosition           = self:GetPointOnPath(Path, PredictModifier)
                 if Speed < 3000 then
-                    PredictedPosition.y         = Start.y  
+                    PredictedPosition.y         = Start.y
                 end
             end
         end
@@ -1003,139 +1005,140 @@ Prediction = {
             end
         end
         --print("HittingHitChance: ",hitChance)
-        return PredictedPosition, t
+        --print("PredPos:" .. type(PredictedPosition) .. " t:" .. type(t) .. " OpenPredPos:" .. type(OpenPredPos) )
+        return OpenPredPos, t
     end,
     GetTargetSelectorList = function(self, Position, Range)
         local ForceTarget = Orbwalker.ForceTarget
         if ForceTarget and self.ForceTargetOnly.Value == 1 and ForceTarget.IsDead == false and ForceTarget.Health > 0 and ForceTarget.IsHero then
             return { ForceTarget }
-        end	
-        
+        end
+
         local Mode = Orbwalker.TargetOptions[Orbwalker.TargetMode.Selected+1]
         local List = self:GetAllEnemyHeros()
-       
+
         local CurrentList = {}
         for _, Object in pairs(List) do
             CurrentList[#CurrentList+1] = Object
         end
 
         if Mode == "PRIO_LOWHP" then
-            for left = 1, #CurrentList do  
+            for left = 1, #CurrentList do
                 for right = left+1, #CurrentList do
                     local LeftPrio = Orbwalker.Prio[CurrentList[left].Index]
                     local RightPio = Orbwalker.Prio[CurrentList[right].Index]
-                    if LeftPrio and RightPio and LeftPrio.Value < RightPio.Value then    
-                        local Swap = CurrentList[left] 
-                        CurrentList[left] = CurrentList[right]  
-                        CurrentList[right] = Swap  
+                    if LeftPrio and RightPio and LeftPrio.Value < RightPio.Value then
+                        local Swap = CurrentList[left]
+                        CurrentList[left] = CurrentList[right]
+                        CurrentList[right] = Swap
                     else
-                        if CurrentList[left].Health > CurrentList[right].Health then    
-                            local Swap = CurrentList[left] 
-                            CurrentList[left] = CurrentList[right]  
-                            CurrentList[right] = Swap  
-                        end    
-                    end   
+                        if CurrentList[left].Health > CurrentList[right].Health then
+                            local Swap = CurrentList[left]
+                            CurrentList[left] = CurrentList[right]
+                            CurrentList[right] = Swap
+                        end
+                    end
                 end
-            end    
+            end
         end
         if Mode == "PRIO_NEAREST" then
-            for left = 1, #CurrentList do  
+            for left = 1, #CurrentList do
                 for right = left+1, #CurrentList do
                     local LeftPrio = Orbwalker.Prio[CurrentList[left].Index]
                     local RightPio = Orbwalker.Prio[CurrentList[right].Index]
-                    if LeftPrio and RightPio and LeftPrio.Value < RightPio.Value then    
-                        local Swap = CurrentList[left] 
-                        CurrentList[left] = CurrentList[right]  
-                        CurrentList[right] = Swap  
+                    if LeftPrio and RightPio and LeftPrio.Value < RightPio.Value then
+                        local Swap = CurrentList[left]
+                        CurrentList[left] = CurrentList[right]
+                        CurrentList[right] = Swap
                     else
-                        if self:GetDistance(myHero.Position, CurrentList[left].Position) > self:GetDistance(myHero.Position, CurrentList[right].Position) then    
-                            local Swap = CurrentList[left] 
-                            CurrentList[left] = CurrentList[right]  
-                            CurrentList[right] = Swap  
-                        end    
-                    end   
+                        if self:GetDistance(myHero.Position, CurrentList[left].Position) > self:GetDistance(myHero.Position, CurrentList[right].Position) then
+                            local Swap = CurrentList[left]
+                            CurrentList[left] = CurrentList[right]
+                            CurrentList[right] = Swap
+                        end
+                    end
                 end
-            end    
+            end
         end
         if Mode == "PRIO_MOUSE" then
-            for left = 1, #CurrentList do  
+            for left = 1, #CurrentList do
                 for right = left+1, #CurrentList do
                     local LeftPrio = self.Prio[CurrentList[left].Index]
                     local RightPio = self.Prio[CurrentList[right].Index]
-                    if LeftPrio and RightPio and LeftPrio.Value < RightPio.Value then    
-                        local Swap = CurrentList[left] 
-                        CurrentList[left] = CurrentList[right]  
-                        CurrentList[right] = Swap  
+                    if LeftPrio and RightPio and LeftPrio.Value < RightPio.Value then
+                        local Swap = CurrentList[left]
+                        CurrentList[left] = CurrentList[right]
+                        CurrentList[right] = Swap
                     else
-                        if self:GetDistance(GameHud.MousePos, CurrentList[left].Position) > self:GetDistance(GameHud.MousePos, CurrentList[right].Position) then    
-                            local Swap = CurrentList[left] 
-                            CurrentList[left] = CurrentList[right]  
-                            CurrentList[right] = Swap  
-                        end    
-                    end   
+                        if self:GetDistance(GameHud.MousePos, CurrentList[left].Position) > self:GetDistance(GameHud.MousePos, CurrentList[right].Position) then
+                            local Swap = CurrentList[left]
+                            CurrentList[left] = CurrentList[right]
+                            CurrentList[right] = Swap
+                        end
+                    end
                 end
-            end    
+            end
         end
         if Mode == "PRIO_AD" then
-            for left = 1, #CurrentList do  
+            for left = 1, #CurrentList do
                 for right = left+1, #CurrentList do
                     local LeftPrio = Orbwalker.Prio[CurrentList[left].Index]
                     local RightPio = Orbwalker.Prio[CurrentList[right].Index]
-                    if LeftPrio and RightPio and LeftPrio.Value < RightPio.Value then    
-                        local Swap = CurrentList[left] 
-                        CurrentList[left] = CurrentList[right]  
-                        CurrentList[right] = Swap  
+                    if LeftPrio and RightPio and LeftPrio.Value < RightPio.Value then
+                        local Swap = CurrentList[left]
+                        CurrentList[left] = CurrentList[right]
+                        CurrentList[right] = Swap
                     else
-                        if CurrentList[left].Armor > CurrentList[right].Armor then    
-                            local Swap = CurrentList[left] 
-                            CurrentList[left] = CurrentList[right]  
-                            CurrentList[right] = Swap  
-                        end    
-                    end   
+                        if CurrentList[left].Armor > CurrentList[right].Armor then
+                            local Swap = CurrentList[left]
+                            CurrentList[left] = CurrentList[right]
+                            CurrentList[right] = Swap
+                        end
+                    end
                 end
-            end    
+            end
         end
         if Mode == "PRIO_AP" then
-            for left = 1, #CurrentList do  
+            for left = 1, #CurrentList do
                 for right = left+1, #CurrentList do
                     local LeftPrio = Orbwalker.Prio[CurrentList[left].Index]
                     local RightPio = Orbwalker.Prio[CurrentList[right].Index]
-                    if LeftPrio and RightPio and LeftPrio.Value < RightPio.Value then    
-                        local Swap = CurrentList[left] 
-                        CurrentList[left] = CurrentList[right]  
-                        CurrentList[right] = Swap  
+                    if LeftPrio and RightPio and LeftPrio.Value < RightPio.Value then
+                        local Swap = CurrentList[left]
+                        CurrentList[left] = CurrentList[right]
+                        CurrentList[right] = Swap
                     else
-                        if CurrentList[left].MagicResist > CurrentList[right].MagicResist then    
-                            local Swap = CurrentList[left] 
-                            CurrentList[left] = CurrentList[right]  
-                            CurrentList[right] = Swap  
-                        end    
-                    end   
+                        if CurrentList[left].MagicResist > CurrentList[right].MagicResist then
+                            local Swap = CurrentList[left]
+                            CurrentList[left] = CurrentList[right]
+                            CurrentList[right] = Swap
+                        end
+                    end
                 end
-            end    
+            end
         end
         if Mode == "PRIO_HYBRID" then
-            for left = 1, #CurrentList do  
+            for left = 1, #CurrentList do
                 for right = left+1, #CurrentList do
                     local LeftPrio = Orbwalker.Prio[CurrentList[left].Index]
                     local RightPio = Orbwalker.Prio[CurrentList[right].Index]
-                    if LeftPrio and RightPio and Orbwalker:PredictDamageToTarget(CurrentList[left], LeftPrio.Value) < Orbwalker:PredictDamageToTarget(CurrentList[right], RightPio.Value) then    
-                        local Swap = CurrentList[left] 
-                        CurrentList[left] = CurrentList[right]  
-                        CurrentList[right] = Swap  
+                    if LeftPrio and RightPio and Orbwalker:PredictDamageToTarget(CurrentList[left], LeftPrio.Value) < Orbwalker:PredictDamageToTarget(CurrentList[right], RightPio.Value) then
+                        local Swap = CurrentList[left]
+                        CurrentList[left] = CurrentList[right]
+                        CurrentList[right] = Swap
                     else
                         local LeftDamage = Orbwalker:PredictDamageToTarget(CurrentList[left], 1)
                         local RightDamage = Orbwalker:PredictDamageToTarget(CurrentList[right], 1)
-                        if LeftDamage < RightDamage then    
-                            local Swap = CurrentList[left] 
-                            CurrentList[left] = CurrentList[right]  
-                            CurrentList[right] = Swap  
-                        end    
-                    end   
+                        if LeftDamage < RightDamage then
+                            local Swap = CurrentList[left]
+                            CurrentList[left] = CurrentList[right]
+                            CurrentList[right] = Swap
+                        end
+                    end
                 end
-            end    
+            end
         end
-        return CurrentList    
+        return CurrentList
     end,
     GetCastPos = function(self, StartPosition, Range, MissileSpeed, MissileWidth, CastTime, Collision, BoundCheck, HitChancePrecentage, Linear)
         Range = Range * 0.95
@@ -1183,8 +1186,8 @@ Prediction = {
                         end
                     end
                 end
-            end 
-        end        
+            end
+        end
         return nil, nil
     end,
     --OLD FUNCTIONS
@@ -1227,9 +1230,9 @@ Prediction = {
         return Vector3.new(x, Point.y, z)
     end,
     LineIntersection3D = function(self, line1_start, line1_end, line2_start, line2_end)
-        local s1_x = line1_end.x - line1_start.x   
+        local s1_x = line1_end.x - line1_start.x
         local s1_z = line1_end.z - line1_start.z
-        local s2_x = line2_end.x - line2_start.x   
+        local s2_x = line2_end.x - line2_start.x
         local s2_z = line2_end.z - line2_start.z
 
         local s = (-s1_z * (line1_start.x - line2_start.x) + s1_x * (line1_start.z - line2_start.z)) / (-s2_x * s1_z + s1_x * s2_z)
@@ -1242,7 +1245,7 @@ Prediction = {
         end
         return false, nil --No collision
     end,
-    GetAkshanCircle = function(self, Target)       
+    GetAkshanCircle = function(self, Target)
         local Center    = nil
         local Radius    = nil
         local Direction = nil
@@ -1269,7 +1272,7 @@ Prediction = {
                 if Engine:IsNotWall(Point) then
                     Circle[#Circle+1] = Point
                 else
-                    break 
+                    break
                 end
             end
             return Circle, true
@@ -1300,7 +1303,7 @@ Prediction = {
                 else
                     NavPoints[#NavPoints+1] = Target.AIData.TargetPos
                 end
-            end         
+            end
         end
         return NavPoints
     end,
@@ -1322,13 +1325,13 @@ Prediction = {
                         local MaxNavLength      = Target.AIData.NavLength
                         local NextNavPoint      = Target.AIData.NextNavPoint
                         for Current = NextNavPoint, math.max(0, MaxNavLength - 1) do
-                            NavPoints[#NavPoints+1] = Target.AIData:GetNavPoint(Current)    
+                            NavPoints[#NavPoints+1] = Target.AIData:GetNavPoint(Current)
                         end
                     end
                 else
                     NavPoints[#NavPoints+1] = Target.AIData.TargetPos
                 end
-            end         
+            end
         end
         return NavPoints
     end,
@@ -1337,7 +1340,7 @@ Prediction = {
         for Current = 1, math.max(1, #Path - 1) do
             local CurrentPoint  = Path[Current]
             local NextPoint     = Path[Current+1]
-            if CurrentPoint and NextPoint then Length = Length + self:GetDistance(CurrentPoint, NextPoint) end   
+            if CurrentPoint and NextPoint then Length = Length + self:GetDistance(CurrentPoint, NextPoint) end
         end
         return Length
     end,
@@ -1353,11 +1356,11 @@ Prediction = {
                     local Norm = self:GetVectorNormalized(self:GetVectorDirection(CurrentPoint, NextPoint))
                     local X = NextPoint.x + (Norm.x * Diff)
                     local Y = NextPoint.y + (Norm.y * Diff)
-                    local Z = NextPoint.z + (Norm.z * Diff)                
+                    local Z = NextPoint.z + (Norm.z * Diff)
                     return Vector3.new(X,Y,Z)
                 end
             end
-        end 
+        end
         return Path[#Path]
     end,
     GetCirclePoints = function(self, Center, Radius)
@@ -1372,11 +1375,11 @@ Prediction = {
             Circle[#Circle+1] = Vector3.new(X,Y,Z)
         end
         return Circle
-    end, 
+    end,
     CheckFoWPosition = function(self, CheckPos)
         if CheckPos then
             local FoWCircle = self:GetCirclePoints(CheckPos, 150)
-            if Engine:IsNotWall(CheckPos) == false then return false end 
+            if Engine:IsNotWall(CheckPos) == false then return false end
             for _, Point in pairs(FoWCircle) do
                 if Engine:IsInFoW(Point) == false then
                     return false
@@ -1384,7 +1387,7 @@ Prediction = {
             end
         end
         return true
-    end,   
+    end,
     SetupPathAndVisibility = function(self, Enemy)
         if Enemy.IsDead or (GameClock.Time - Awareness:GetRecallFinishTime(Enemy) < 1) then
             self.Path[Enemy.Index]      = {}
@@ -1457,7 +1460,7 @@ Prediction = {
             Render:DrawCircle(PredPos, 65,255,0,0,255)
         end]]
     end,
-    OnLoad = function(self) 
+    OnLoad = function(self)
         AddEvent("OnSettingsSave" , function() self:SaveSettings() end)
         AddEvent("OnSettingsLoad" , function() self:LoadSettings() end)
         self:Init()
