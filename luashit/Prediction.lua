@@ -24,7 +24,7 @@ Prediction = {
         self.DashSpell['Ezreal'] = {E = 0.25, ESpeed = math.huge, EType = "DT"}
         self.DashSpell['Aatrox'] = {E = 0, ESpeed = 1340, EType = "DT"}
         self.DashSpell['Caitlyn'] = {E = 0.15, ESpeed = 2200, EType = "DT"}
-        self.DashSpell['Gragas:'] = {E = 0, ESpeed = 2200, EType = "DT"}
+        self.DashSpell['Gragas'] = {E = 0, ESpeed = 2200, EType = "DT"}
         self.DashSpell['Graves'] = {E = 0, ESpeed = 2200, EType = "DT"}
         self.DashSpell['Kalista'] = {P = 0, PSpeed = 1160, PType = "UT", Q = 0, QSpeed = 1160, QType = "DT"}
         self.DashSpell['Kled'] = {E = 0, ESpeed = 2200, EType = "DT", R = 0, RSpeed = 1650, RType = "AT"}
@@ -105,7 +105,7 @@ Prediction = {
         self.DashSpell['Wukong'] = {W = 0, WSpeed = 1200, WType = "UT", E = 0, ESpeed = 1400, EType = "DT"}
         self.DashSpell['XinZhao'] = {E = 0, ESpeed = 2500, EType = "UT", R = 0.35, RSpeed = math.huge, RType = "BLOCK"}
         self.DashSpell['Yasuo'] = {E = 0, ESpeed = 1100, EType = "UT"}
-        self.DashSpell['Yuumi'] = {E = 0, ESpeed = 1600, EType = "UT"}
+        self.DashSpell['Yuumi'] = {W = 0, ESpeed = 1600, EType = "UT"}
         self.DashSpell['Zed'] = {W = 0, WSpeed = 2500, WType = "LT", R = 0, RSpeed = math.huge, RType = "BLOCK"}
 
         self.Enabled         = 1
@@ -124,11 +124,14 @@ Prediction = {
         self.AttackTimer = {}
         self.ActionTimer = {}
         self.Action = {}
+        self.MovingTarget = nil
 
         self.LastTarget = nil
         self.LastTargetTime = nil
 
         self.Menu 							    = Menu:CreateMenu("Prediction")
+        self.Menu:AddLabel("Alternate Prediction (WIP)")
+        self.onPath           = self.Menu:AddCheckbox("Enabled", 0)
         self.Menu:AddLabel("COMBO and LockCam same key(e.g. SPACE:")
         self.PlayWithLockedCamOnSpace 		    = self.Menu:AddCheckbox("Enabled", 0)
         self.Menu:AddLabel("Only cast spells on ForceTarget if set:")
@@ -146,6 +149,7 @@ Prediction = {
     SaveSettings = function(self)
     	SettingsManager:CreateSettings			("Prediction")
 	    SettingsManager:AddSettingsGroup		("Settings")
+        SettingsManager:AddSettingsInt          ("onPath", self.onPath.Value)
         SettingsManager:AddSettingsInt			("ForceTargetOnly", self.ForceTargetOnly.Value)
         SettingsManager:AddSettingsInt			("PlayWithLockedCamOnSpace", self.PlayWithLockedCamOnSpace.Value)
         SettingsManager:AddSettingsInt			("SetYourPing", self.SetYourPing.Value)
@@ -159,6 +163,7 @@ Prediction = {
     LoadSettings = function(self)
         SettingsManager:GetSettingsFile			("Prediction")
         self.ForceTargetOnly.Value              = SettingsManager:GetSettingsInt("Settings","ForceTargetOnly")
+        self.onPath.Value              = SettingsManager:GetSettingsInt("Settings","onPath")
         self.PlayWithLockedCamOnSpace.Value     = SettingsManager:GetSettingsInt("Settings","PlayWithLockedCamOnSpace")
         self.SetYourPing.Value 				    = SettingsManager:GetSettingsInt("Settings","SetYourPing")
         self.ReactionTime.Value 				= SettingsManager:GetSettingsInt("Settings","ReactionTime")
@@ -746,8 +751,12 @@ Prediction = {
         return nil
     end,
     GetPredictionPosition = function(self, Target, Start, Speed, Delay, Width, Collision, BoundCheck, HitChancePrecentage, Linear)
+
         if self.Enabled == 0 then return nil, nil end
+
         if self:BlockPredActiveSpells(Target) == true then return nil, nil end
+
+
         local ZhonyasBuff = Target.BuffData:GetBuff("zhonyasringshield")
         local ZhonyasTimer = nil
         local Zhonyas_Valid = ZhonyasBuff.Valid or ZhonyasBuff.Count_Alt > 0
@@ -769,13 +778,12 @@ Prediction = {
         -- 0.4 stun
         local hitChance = 0
         local HitChanceOutside = nil
-
+        local isDashing = {}
         local IsLinear = 0
+
         if Linear == true or Linear == 1 then
             IsLinear = 1
         end
-
-
 
         if HitChancePrecentage ~= nil and HitChancePrecentage >= 1 then
             HitChanceOutside = HitChancePrecentage / 100
@@ -824,6 +832,7 @@ Prediction = {
                 if LastAction ~= nil and LastAction < Time2React then
                     LastActionTimer = Time2React - LastAction
                 end
+
                 --OpenPredMethod:
                 ------------------------------------------------------
                 local pingT = self.SetYourPing.Value * 0.001
@@ -857,7 +866,7 @@ Prediction = {
                 end
                 ----------------------Test-Prediction-------------------------
                 if 1 == 1 then
-                    local OpenPredMod = math.max(5, MovementSpeed * t)
+                    local OpenPredMod = math.max(5, MovementSpeed * (t + 0.4) )
                     OpenPredPos = self:GetPointOnPath(Path, OpenPredMod)
                     Render:DrawCircle(OpenPredPos, 50 ,0,255,0,255)
 
@@ -950,18 +959,18 @@ Prediction = {
                 end
 
                 if self.PredictHitBox.Value == 0 and IsLinear == 1 then
-                    AdjustMultiplier = 0
+                    AdjustMultiplier = 0 -- same with below
                 end
 
                 if PathMultiplier < 1 and IsLinear == 1 then
-                    AdjustMultiplier = 0
+                    AdjustMultiplier = 0 -- same with below
                 end
                 if Target.AIData.Dashing == true then
-                    AdjustMultiplier = 0
+                    AdjustMultiplier = 0 -- if dashing, predictModifier will take ms * 0.125
                 end
                 --print(AdjustMultiplier)
 
-                local Adjustment            = ((Width / 2) + TargetBound) * AdjustMultiplier
+                local Adjustment            = ((Width / 2) + TargetBound) * AdjustMultiplier -- ?
                 if Adjustment > 0 and IsLinear == 1 then
                     hitChance = hitChance + hitChance * ((Adjustment/MovementSpeed)/2)
                 end
@@ -982,11 +991,11 @@ Prediction = {
                     end
                 end
 
-                local PredictModifier       = math.max(MovementSpeed * 0.125, (MovementSpeed * t) - Adjustment)
+                local PredictModifier       = math.max(MovementSpeed * 0.125, (MovementSpeed * t) - Adjustment) -- Takes max out of MS * 0.125 and MS * t - Adjustment
                 --print("Degrees2Hit: ",Degrees)
                 --print("Adjustment2Hit: ",Adjustment)
                 --checkpoint
-                PredictedPosition           = self:GetPointOnPath(Path, PredictModifier)
+                PredictedPosition           = self:GetPointOnPath(Path, PredictModifier) -- what does predictmodifier do?
                 if Speed < 3000 then
                     PredictedPosition.y         = Start.y
                 end
@@ -1006,7 +1015,10 @@ Prediction = {
         end
         --print("HittingHitChance: ",hitChance)
         --print("PredPos:" .. type(PredictedPosition) .. " t:" .. type(t) .. " OpenPredPos:" .. type(OpenPredPos) )
+        if onPath then
         return OpenPredPos, t
+        end
+        return PredictedPosition, t
     end,
     GetTargetSelectorList = function(self, Position, Range)
         local ForceTarget = Orbwalker.ForceTarget
@@ -1063,8 +1075,8 @@ Prediction = {
         if Mode == "PRIO_MOUSE" then
             for left = 1, #CurrentList do
                 for right = left+1, #CurrentList do
-                    local LeftPrio = self.Prio[CurrentList[left].Index]
-                    local RightPio = self.Prio[CurrentList[right].Index]
+                    local LeftPrio = Orbwalker.Prio[CurrentList[left].Index]
+                    local RightPio = Orbwalker.Prio[CurrentList[right].Index]
                     if LeftPrio and RightPio and LeftPrio.Value < RightPio.Value then
                         local Swap = CurrentList[left]
                         CurrentList[left] = CurrentList[right]
@@ -1144,23 +1156,30 @@ Prediction = {
         Range = Range * 0.95
         local ScreenPosition    = Vector3.new()
         local TargetSelector    = self:GetTargetSelectorList()
+
+
         for _, Hero in pairs(TargetSelector) do
             -- print('LastTargetTime', self.LastTargetTime)
             -- print('LastTarget', self.LastTarget)
             if self.LastTargetTime ~= nil and GameClock.Time < self.LastTargetTime and self.UseCachedTargetPrio.Value == 1 then
                 if Hero.ChampionName == self.LastTarget then
+
                     if Hero.IsDead or not Hero.IsTargetable then
                         self.LastTargetTime = nil
                         self.LastTarget = nil
                         ::continue::
                     end
-                    -- add multiple checks eg. if cache enemy can't be hit then after x seconds of self.CacheTimeForLastTarget.Value total time to cast on other enemy
-                    -- sorry christoph for making a mess of this code block, i will fix it :pepolove:
+
+
+
                     local PredictionPosition, TimeToHit = self:GetPredictionPosition(Hero, StartPosition, MissileSpeed, CastTime, MissileWidth, Collision, BoundCheck, HitChancePrecentage, Linear)
                     local HeroRadius = 0
+
                     if BoundCheck == 1 or BoundCheck == true then
                         HeroRadius = Hero.CharData.BoundingRadius
                     end
+
+
                     if PredictionPosition and self:GetDistance(StartPosition, PredictionPosition) < Range and self:GetDistance(StartPosition, Hero.Position) < Range + MissileWidth/2+HeroRadius then
                         if Render:World2Screen(PredictionPosition, ScreenPosition) == true then
                             if Collision == 0 or (self:WillCollideWithMinionPrediction(StartPosition, PredictionPosition, MissileSpeed, CastTime, MissileWidth, BoundCheck) == false and self:WillCollideWithMinion(StartPosition, Hero.Position, MissileWidth/2) == false) then
@@ -1170,7 +1189,11 @@ Prediction = {
                             end
                         end
                     end
+
+
                 end
+
+
             else
                 local PredictionPosition, TimeToHit = self:GetPredictionPosition(Hero, StartPosition, MissileSpeed, CastTime, MissileWidth, Collision, BoundCheck, HitChancePrecentage, Linear)
                 local HeroRadius = 0
@@ -1189,6 +1212,65 @@ Prediction = {
             end
         end
         return nil, nil
+    end,
+    TargetPredict = function(self, StartPosition, Range, MissileSpeed, MissileWidth, CastTime, Collision, BoundCheck, HitChancePrecentage, Linear, Hero)
+        Range = Range * 0.95
+        local ScreenPosition    = Vector3.new()
+        if Hero.ChampionName == self.LastTarget then
+            if Hero.IsDead or not Hero.IsTargetable then
+                self.LastTargetTime = nil
+                self.LastTarget = nil
+                ::continue::
+            end
+            local PredictionPosition, TimeToHit = self:GetPredictionPosition(Hero, StartPosition, MissileSpeed, CastTime, MissileWidth, Collision, BoundCheck, HitChancePrecentage, Linear)
+            local HeroRadius = 0
+            if BoundCheck == 1 or BoundCheck == true then
+                HeroRadius = Hero.CharData.BoundingRadius
+            end
+            if PredictionPosition and self:GetDistance(StartPosition, PredictionPosition) < Range and self:GetDistance(StartPosition, Hero.Position) < Range + MissileWidth/2+HeroRadius then
+                if Render:World2Screen(PredictionPosition, ScreenPosition) == true then
+                    if Collision == 0 or (self:WillCollideWithMinionPrediction(StartPosition, PredictionPosition, MissileSpeed, CastTime, MissileWidth, BoundCheck) == false and self:WillCollideWithMinion(StartPosition, Hero.Position, MissileWidth/2) == false) then
+                        self.LastTargetTime = GameClock.Time + self.CacheTimeForLastTarget.Value
+                        self.LastTarget = Hero.ChampionName
+                        return PredictionPosition, Hero
+                    end
+                end
+            end
+
+        else
+            local PredictionPosition, TimeToHit = self:GetPredictionPosition(Hero, StartPosition, MissileSpeed, CastTime, MissileWidth, Collision, BoundCheck, HitChancePrecentage, Linear)
+            local HeroRadius = 0
+            if BoundCheck == 1 or BoundCheck == true then
+                HeroRadius = Hero.CharData.BoundingRadius
+            end
+            if PredictionPosition and self:GetDistance(StartPosition, PredictionPosition) < Range and self:GetDistance(StartPosition, Hero.Position) < Range + MissileWidth/2+HeroRadius then
+                if Render:World2Screen(PredictionPosition, ScreenPosition) == true then
+                    if Collision == 0 or (self:WillCollideWithMinionPrediction(StartPosition, PredictionPosition, MissileSpeed, CastTime, MissileWidth, BoundCheck) == false and self:WillCollideWithMinion(StartPosition, Hero.Position, MissileWidth/2) == false) then
+                        self.LastTargetTime = GameClock.Time + self.CacheTimeForLastTarget.Value
+                        self.LastTarget = Hero.ChampionName
+                        return PredictionPosition, Hero
+                    end
+                end
+            end
+        return nil, nil
+        end
+    end,
+    OnDash = function(self, StartPosition, Range, MissileSpeed, MissileWidth, CastTime, Collision, BoundCheck, HitChancePrecentage, Linear)
+         Range = Range * 0.95
+        local ScreenPosition    = Vector3.new()
+        local TargetSelector    = self:GetTargetSelectorList()
+        local dumbo = 0
+        for _, Hero in pairs(TargetSelector) do
+            -- print('LastTargetTime', self.LastTargetTime)
+            -- print('LastTarget', self.LastTarget)
+            if Hero.AIData.Dashing == true then
+                local idk, tthit = self:TargetPredict(StartPosition, Range, MissileSpeed, MissileWidth, CastTime, Collision, BoundCheck, HitChancePrecentage, Linear, Hero)
+                if idk ~= nil then
+                    return 1, idk
+                end
+            end
+        end
+        return 0, nil
     end,
     --OLD FUNCTIONS
     GetPredPos = function(self, StartPos, Target, Speed, CastTime)
@@ -1447,6 +1529,17 @@ Prediction = {
         end
     end,
     OnDraw = function(self)
+    if 1 == 1 then
+        self.DrawSpells = {}
+            local Heros = ObjectManager.HeroList
+            for I, Hero in pairs(Heros) do
+                local Spell = self.DashSpell[Hero.ActiveSpell.Info.Name]
+                local SpellName = Hero.ActiveSpell.Info.Name
+                if SpellName ~= "" and not string.find(SpellName, "Basic")  then
+                    Render:DrawCircle(Hero.ActiveSpell.EndPos,60,255,255,255,255)
+                end
+            end
+    end
        -- print(GameClock.Time)--myHero.AIData:GetBase())
         --local CheckPos  = GameHud.MousePos
         --print(self:CheckFoWPosition(CheckPos))
@@ -1462,7 +1555,7 @@ Prediction = {
     end,
     OnLoad = function(self)
         AddEvent("OnSettingsSave" , function() self:SaveSettings() end)
-        AddEvent("OnSettingsLoad" , function() self:LoadSettings() end)
+        AddEvent("OnSettingsLoad" , function() self:LoadSettings() end) 
         self:Init()
         AddEvent("OnTick", function() self:OnTick() end)
         AddEvent("OnDraw", function() self:OnDraw() end)
