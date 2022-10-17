@@ -1,11 +1,11 @@
 Xerath = {
     Init = function(self)
-        self.QRange_Min 	= 750
-        self.QRange_Max 	= 1450
-		self.QRange_Charged = 0
+        self.QRange_Min     = 750
+        self.QRange_Max     = 1450
+        self.QRange_Charged = 0
 
         self.QSpeed = math.huge
-		-- self.QDelay = 0.40
+        -- self.QDelay = 0.40
         self.QDelay = 0.528
         self.QWidth = 140
 
@@ -23,7 +23,7 @@ Xerath = {
 
         self.RSpeed = math.huge
         self.RRange = 5000
-        self.RDelay = 0.6
+        self.RDelay = 0.627
 
         self.Menu       = Menu:CreateMenu("Xerath") 
         --------------------------------------------
@@ -40,9 +40,11 @@ Xerath = {
         self.ESettings  = self.Menu:AddSubMenu("E Settings")
         self.ComboUseE  = self.ESettings:AddCheckbox("Use E on Combo")
         self.HarassUseE = self.ESettings:AddCheckbox("Use E on Harass")
+        self.AutoEonDash = self.ESettings:AddCheckbox("Use E on Dash",0)
         --------------------------------------------
         self.RSettings  = self.Menu:AddSubMenu("R Settings")
         self.ComboUseR  = self.RSettings:AddCheckbox("Use R on Combo")
+        --self.AutoDashOnR  = self.RSettings:AddCheckbox("Use R on Combo")
         --------------------------------------------
         self.DrawSettings  = self.Menu:AddSubMenu("Drawings")
         self.QDrawings     = self.DrawSettings:AddCheckbox("Draw Q Range")
@@ -66,9 +68,11 @@ Xerath = {
         SettingsManager:AddSettingsGroup("ESettings")
         SettingsManager:AddSettingsInt("UseECombo", self.ComboUseE.Value)
         SettingsManager:AddSettingsInt("UseEHarass", self.HarassUseE.Value)
+        SettingsManager:AddSettingsInt("AutoEonDash", self.AutoEonDash.Value)
         ------------------------------------------------------------
         SettingsManager:AddSettingsGroup("RSettings")
         SettingsManager:AddSettingsInt("UseRCombo", self.ComboUseR.Value)
+        --SettingsManager:AddSettingsInt("AutoDashOnR", self.AutoDashOnR.Value)
         ------------------------------------------------------------
         SettingsManager:AddSettingsGroup("Drawings")
         SettingsManager:AddSettingsInt("DrawQ", self.QDrawings.Value)
@@ -78,17 +82,19 @@ Xerath = {
     end,
     LoadSettings = function(self)
         SettingsManager:GetSettingsFile("Xerath")
-        self.ComboUseQ.Value 		= SettingsManager:GetSettingsInt("QSettings","UseQCombo")
-        self.LaneclearUseQ.Value 		= SettingsManager:GetSettingsInt("QSettings","UseQLaneclear")
+        self.ComboUseQ.Value        = SettingsManager:GetSettingsInt("QSettings","UseQCombo")
+        self.LaneclearUseQ.Value        = SettingsManager:GetSettingsInt("QSettings","UseQLaneclear")
         -------------------------------------------------------------
-        self.ComboUseW.Value		= SettingsManager:GetSettingsInt("WSettings","UseWCombo")
-        self.HarassUseW.Value		= SettingsManager:GetSettingsInt("WSettings","UseWHarass")
-        self.LaneclearUseW.Value		= SettingsManager:GetSettingsInt("WSettings","UseWLaneclear")
+        self.ComboUseW.Value        = SettingsManager:GetSettingsInt("WSettings","UseWCombo")
+        self.HarassUseW.Value       = SettingsManager:GetSettingsInt("WSettings","UseWHarass")
+        self.LaneclearUseW.Value        = SettingsManager:GetSettingsInt("WSettings","UseWLaneclear")
         -------------------------------------------------------------
-        self.ComboUseE.Value		= SettingsManager:GetSettingsInt("ESettings","UseECombo")
-        self.HarassUseE.Value		= SettingsManager:GetSettingsInt("ESettings","UseEHarass")
+        self.ComboUseE.Value        = SettingsManager:GetSettingsInt("ESettings","UseECombo")
+        self.HarassUseE.Value       = SettingsManager:GetSettingsInt("ESettings","UseEHarass")
+        self.AutoEonDash.Value        = SettingsManager:GetSettingsInt("ESettings","AutoEonDash")
         -------------------------------------------------------------
-        self.ComboUseR.Value		= SettingsManager:GetSettingsInt("RSettings","UseRCombo")
+        self.ComboUseR.Value        = SettingsManager:GetSettingsInt("RSettings","UseRCombo")
+        --self.AutoDashOnR.Value        = SettingsManager:GetSettingsInt("RSettings","AutoDashOnR")
         -------------------------------------------------------------
         self.QDrawings.Value = SettingsManager:GetSettingsInt("Drawings","DrawQ")
         self.WDrawings.Value = SettingsManager:GetSettingsInt("Drawings","DrawW")
@@ -189,6 +195,19 @@ Xerath = {
     OnTick = function(self)
         if GameHud.Minimized == false and GameHud.ChatOpen == false then
             self:SetRanges()
+
+            if Engine:SpellReady("HK_SPELL3") and self.AutoEonDash.Value == 1 then
+                local StartPos = myHero.Position
+                local __, PredPos = Prediction:OnDash(myHero.Position, self.ERange, self.ESpeed, self.EWidth, self.EDelay, 1, true, self.EHitChance, 1)
+                if __ then
+                    if PredPos ~= nil then
+                        if self:GetDistance(StartPos, PredPos) < self.ERange then
+                            Engine:CastSpell("HK_SPELL3", PredPos ,1)
+                            
+                        end
+                    end
+                end
+            end
             if Engine:IsKeyDown("HK_COMBO") then
                 return self:Combo()	
             end
