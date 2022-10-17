@@ -17,10 +17,14 @@ function Blitzcrank:__init()
 	self.EDelay = 0
 	self.RDelay = 0.25
 
-	self.QHitChance = 0.75
+	self.QHitChance = 0.6
 
     self.ChampionMenu = Menu:CreateMenu("Blitzcrank")
 	-------------------------------------------
+
+    self.ComboMenu = self.ChampionMenu:AddSubMenu("Q")
+    self.qOnDash = self.ComboMenu:AddCheckbox("Q on Dash", 0)
+
     self.ComboMenu = self.ChampionMenu:AddSubMenu("Combo")
     self.ComboUseQ = self.ComboMenu:AddCheckbox("UseQ", 1)
     self.ComboUseE = self.ComboMenu:AddCheckbox("UseE", 1)
@@ -34,6 +38,8 @@ end
 
 function Blitzcrank:SaveSettings()
 	SettingsManager:CreateSettings("Blitzcrank")
+	SettingsManager:AddSettingsGroup("Q")
+	SettingsManager:AddSettingsInt("QonDash", self.qOnDash.Value)
 	SettingsManager:AddSettingsGroup("Combo")
 	SettingsManager:AddSettingsInt("UseQ", self.ComboUseQ.Value)
 	SettingsManager:AddSettingsInt("UseE", self.ComboUseE.Value)
@@ -46,6 +52,7 @@ end
 
 function Blitzcrank:LoadSettings()
 	SettingsManager:GetSettingsFile("Blitzcrank")
+	self.qOnDash.Value = SettingsManager:GetSettingsInt("Q","QonDash")
 	self.ComboUseQ.Value = SettingsManager:GetSettingsInt("Combo","UseQ")
 	self.ComboUseE.Value = SettingsManager:GetSettingsInt("Combo","UseE")
 	self.ComboUseR.Value = SettingsManager:GetSettingsInt("Combo","UseR")
@@ -103,11 +110,31 @@ function Blitzcrank:Combo()
 end
 
 function Blitzcrank:OnTick()
+
     if GameHud.Minimized == false and GameHud.ChatOpen == false and Orbwalker.Attack == 0 then
+
+    	if Engine:SpellReady("HK_SPELL1") and self.qOnDash.Value == 1 then
+			local StartPos = myHero.Position
+			local __, PredPos = Prediction:OnDash(myHero.Position, self.QRange, self.QSpeed, self.QWidth, self.QDelay, 1, true, self.QHitChance, 1)
+			if __ then
+				if PredPos ~= nil then
+					if self:GetDistance(StartPos, PredPos) < self.QRange then
+						Engine:CastSpell("HK_SPELL1", PredPos ,1)
+						
+					end
+				end
+			end
+		end
+
+		
 		if Engine:IsKeyDown("HK_COMBO") then
 			Blitzcrank:Combo()
 			return
 		end
+
+		
+
+
 	end
 end
 
@@ -126,6 +153,7 @@ function Blitzcrank:OnDraw()
 			return
 		end
 	end
+	
 end
 
 
