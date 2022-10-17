@@ -1,4 +1,3 @@
---REWORKEDORB 30/08/2022-02.??
 Orbwalker = {
     TargetOptions = {
         "PRIO_LOWHP",
@@ -9,21 +8,13 @@ Orbwalker = {
         "PRIO_HYBRID"
     },
     Init = function(self)
-
-        self.KeyNames = {}
-        self.KeyNames[4] 		= "HK_SUMMONER1"
-        self.KeyNames[5] 		= "HK_SUMMONER2"
-
         self.Enabled            = 1
+        self.LastAttackTime     = 0
         self.LastMoveTime       = 0
-        self.LastMissileTime    = 0
+        self.FailSafe           = 0
 
         self.LastWindup         = 0
         self.LastDelay          = 0
-        
-        self.LastClick          = 0
-        self.WindupTimer        = 0
-        self.AttackTimer        = 0
 
         self.Attack             = 0
         self.Windup             = 0
@@ -38,42 +29,32 @@ Orbwalker = {
         self.CaitHSCounts       = {}
         self.CaitHSTimer        = 0
         self.ETimer             = 0
-        self.RivenWTimer        = 0
-
-        self.WaitForLasthit     = false
-        self.WaitForLastHitTimer = nil
-        self.WaitMinion         = nil
+        self.WTimer             = 0
 
         self.Menu = Menu:CreateMenu("Orbwalker")
-        self.GenericMenu            = self.Menu:AddSubMenu("Generic Settings")
+        self.GenericMenu = self.Menu:AddSubMenu("Generic Settings")
         self.GenericMenu:AddLabel("Hold Radius:")
         self.GenericMenu:AddLabel("-->if mouse closer X to player dont issue move")
-        self.HoldRadius             = self.GenericMenu:AddSlider("", 50, 50, 300, 1)
+        self.HoldRadius     = self.GenericMenu:AddSlider("", 50, 50, 300, 1)
         self.GenericMenu:AddLabel("Block AA:")
         self.GenericMenu:AddLabel("-->dont use AA when level X and higher (disabled = 0)")
-        self.BlockAALevel           = self.GenericMenu:AddSlider("", 0, 0, 18, 1)
-        self.TargetMode             = self.GenericMenu:AddCombobox("Target Mode", self.TargetOptions)
+        self.BlockAALevel   = self.GenericMenu:AddSlider("", 0, 0, 18, 1)
+        self.TargetMode     = self.GenericMenu:AddCombobox("Target Mode", self.TargetOptions)
         self.GenericMenu:AddLabel("Champion Prios:")
-        self.LaneclearMenu          = self.Menu:AddSubMenu("Laneclear Settings")
+        self.LaneclearMenu = self.Menu:AddSubMenu("Laneclear Settings")
         self.LaneclearMenu:AddLabel("Lower = faster, higher = slower")
-        self.AlwaysPush             = self.LaneclearMenu:AddCheckbox("Always push with waveclear", 0)
-        self.PrioChampHarass        = self.LaneclearMenu:AddCheckbox("1 == Prio Champion, 0 == Prio LastHits In Harass", 1)
-        self.Prio		            = {}
-        self.SupportMenu            = self.Menu:AddSubMenu("Support Settings")
-        self.SupportMode            = self.SupportMenu:AddCheckbox("Disable attacks on minions", 0)
-        self.DrawMenu               = self.Menu:AddSubMenu("Draw Settings")
-        self.PlayerRange            = self.DrawMenu:AddCheckbox("Draw Player Range", 1)
-        self.EnemyRange             = self.DrawMenu:AddCheckbox("Draw Enemy Range", 1)
-        self.DrawTargetCircle       = self.DrawMenu:AddCheckbox("Draw Targetting Circle", 1)
-        self.SafeFlashMenu          = self.Menu:AddSubMenu("Safe Flash Settings")
-        self.SafeFlashMenu:AddLabel("Safe flash will prevent you from flashing to your mouse while holding down a key")
-        self.SafeFlashMenu:AddLabel("Look at FAQ section on how to setup keys for fail flash to work properly")
-        self.UseSafeFlash           = self.SafeFlashMenu:AddCheckbox("Use Safe Flash", 1)
-        self.MiscMenu               = self.Menu:AddSubMenu("Misc Settings")
-        self.AssassinMode           = self.MiscMenu:AddCheckbox("Only Target Your ForceTarget", 0)
-        self.UsePrioList            = self.MiscMenu:AddCheckbox("Automatically Set Target Priorities", 1)
-        self.BlockAttackForDodge    = self.MiscMenu:AddCheckbox("Block/Cancel AA for Evade", 0)
-        self.WindUpSlider           = self.MiscMenu:AddSlider("Windup Percentage", 100, 70, 130, 1)
+        self.LaneclearMode  = self.LaneclearMenu:AddSlider("Waveclear speed", 30, 1, 60, 1)
+        self.Prio       = {}
+        self.SupportMenu = self.Menu:AddSubMenu("Support Settings")
+        self.SupportMode    = self.SupportMenu:AddCheckbox("Disable attacks on minions", 0)
+        self.DrawMenu = self.Menu:AddSubMenu("Draw Settings")
+        self.PlayerRange = self.DrawMenu:AddCheckbox("Draw Player Range", 1)
+        self.EnemyRange = self.DrawMenu:AddCheckbox("Draw Enemy Range", 1)
+        self.DrawTargetCircle = self.DrawMenu:AddCheckbox("Draw Targetting Circle", 1)
+        self.MiscMenu = self.Menu:AddSubMenu("Misc Settings")
+        self.AssassinMode   = self.MiscMenu:AddCheckbox("Only Target Your ForceTarget", 0)
+        self.UsePrioList = self.MiscMenu:AddCheckbox("Automatically Set Target Priorities", 1)
+        self.BlockAttackForDodge = self.MiscMenu:AddCheckbox("Block/Cancel AA for Evade", 0)
 
         self:LoadSettings()
     end,
@@ -82,9 +63,7 @@ Orbwalker = {
         SettingsManager:AddSettingsGroup("Settings")
         SettingsManager:AddSettingsInt("HoldRadius", self.HoldRadius.Value)
         SettingsManager:AddSettingsInt("BlockAALevel", self.BlockAALevel.Value)
-        SettingsManager:AddSettingsInt("AlwaysPush", self.AlwaysPush.Value)
-        SettingsManager:AddSettingsInt("PrioChampHarass", self.PrioChampHarass.Value)
-        SettingsManager:AddSettingsInt("UseSafeFlash", self.UseSafeFlash.Value)
+        SettingsManager:AddSettingsInt("LaneclearMode", self.LaneclearMode.Value)
         SettingsManager:AddSettingsInt("SupportMode", self.SupportMode.Value)
         SettingsManager:AddSettingsInt("AssassinMode", self.AssassinMode.Value)
         SettingsManager:AddSettingsInt("TargetMode", self.TargetMode.Selected)
@@ -93,16 +72,13 @@ Orbwalker = {
         SettingsManager:AddSettingsInt("DrawTarget", self.DrawTargetCircle.Value)
         SettingsManager:AddSettingsInt("BlockAttackForDodge", self.BlockAttackForDodge.Value)
         SettingsManager:AddSettingsInt("AutomaticPrio", self.UsePrioList.Value)
-        SettingsManager:AddSettingsInt("WindUpSlider", self.WindUpSlider.Value)
 
     end,
     LoadSettings = function(self)
-        SettingsManager:GetSettingsFile			("Orbwalker")
+        SettingsManager:GetSettingsFile         ("Orbwalker")
         self.HoldRadius.Value = SettingsManager:GetSettingsInt("Settings","HoldRadius")
         self.BlockAALevel.Value = SettingsManager:GetSettingsInt("Settings","BlockAALevel")
-        self.AlwaysPush.Value = SettingsManager:GetSettingsInt("Settings","AlwaysPush")
-        self.PrioChampHarass.Value = SettingsManager:GetSettingsInt("Settings","PrioChampHarass")
-        self.UseSafeFlash.Value = SettingsManager:GetSettingsInt("Settings","UseSafeFlash")
+        self.LaneclearMode.Value = SettingsManager:GetSettingsInt("Settings","LaneclearMode")
         self.SupportMode.Value = SettingsManager:GetSettingsInt("Settings","SupportMode")
         self.AssassinMode.Value = SettingsManager:GetSettingsInt("Settings","AssassinMode")
         self.TargetMode.Selected = SettingsManager:GetSettingsInt("Settings","TargetMode")
@@ -111,7 +87,6 @@ Orbwalker = {
         self.DrawTargetCircle.Value = SettingsManager:GetSettingsInt("Settings","DrawTarget")
         self.BlockAttackForDodge.Value = SettingsManager:GetSettingsInt("Settings","BlockAttackForDodge")
         self.UsePrioList.Value = SettingsManager:GetSettingsInt("Settings","AutomaticPrio")
-        self.WindUpSlider.Value = SettingsManager:GetSettingsInt("Settings","WindUpSlider")
     end,
     --Util functions
     SortList = function(self, List, Mode) 
@@ -423,9 +398,7 @@ Orbwalker = {
             local Distance          = self:GetDistance(Object.Position, Position)
             local RangeCheck        = Distance < Range + Object.CharData.BoundingRadius
             local TargetableCheck   = Object.IsTargetable and Object.MaxHealth > 10
-            local TargetImmune      = self:TargetIsImmune(Object)
-            local GwenCheck         = (Object.BuffData:GetBuff("gwenw_gweninsidew").Valid == false or self:GetDistance(myHero.Position, Object.Position) <= 475)
-            if RangeCheck and TargetableCheck and not TargetImmune and GwenCheck then
+            if RangeCheck and TargetableCheck then
                 InRange[#InRange+1] = Object
             end
         end
@@ -464,34 +437,6 @@ Orbwalker = {
         end
         return InRange
     end,
-    GetAllJungleMinions = function(self)
-        local Allies = {}
-        local Minions = ObjectManager.MinionList
-        for _, Object in pairs(Minions) do
-            if Object.Team == 300 then
-                Allies[#Allies+1] = Object
-            end
-        end
-        return Allies
-    end,
-    GetJungleMinionsInRange = function(self, Position, Range)
-        local InRange = {}
-        local Jungle = self:GetAllJungleMinions()
-        local OffAggro = nil
-        for _, Object in pairs(Jungle) do
-            local Bound =  math.min(55, Object.CharData.BoundingRadius)
-            if self:GetDistance(Object.Position, Position) < Range + Bound and Object.IsTargetable and self:IsValidMinion(Object) then
-                InRange[#InRange+1] = Object
-                --print(Object.ChampionName) --SRU_Razorbeak, SRU_Red, SRU_Krug, SRU_Murkwolf, SRU_Blue, SRU_Gromp
-                if Object.Mana < 100 then
-                    if Object.ChampionName == "SRU_Red" or Object.ChampionName == "SRU_Blue" or Object.ChampionName == "SRU_Gromp" then
-                        OffAggro = true
-                    end
-                end
-            end
-        end
-        return InRange, OffAggro
-    end,
     GetDistance = function(self, from, to)
         return math.max(0, math.sqrt((from.x - to.x) ^ 2 + (from.y - to.y) ^ 2 + (from.z - to.z) ^ 2))
     end,
@@ -504,10 +449,10 @@ Orbwalker = {
         return Q + W + E + R
     end,    
     GetAttackSpeed = function(self)
-        local AttackRange		    = myHero.AttackRange
-        local AttackSpeedMod	    = myHero.AttackSpeedMod
-        local BaseAttackSpeed	    = myHero.CharData.BaseAttackSpeed
-        local BaseAttackSpeedRatio	= myHero.CharData.BaseAttackSpeedRatio
+        local AttackRange           = myHero.AttackRange
+        local AttackSpeedMod        = myHero.AttackSpeedMod
+        local BaseAttackSpeed       = myHero.CharData.BaseAttackSpeed
+        local BaseAttackSpeedRatio  = myHero.CharData.BaseAttackSpeedRatio
 
         if myHero.ChampionName == "Jhin" then
             local AttackSpeedPerLevel = {0.04,0.05,0.06,0.07,0.08,0.09,0.10,0.11,0.12,0.14,0.16,0.20,0.24,0.28,0.32,0.36,0.40,0.44}
@@ -521,18 +466,18 @@ Orbwalker = {
         end
         local AttackSpeed = BaseAttackSpeed + (BaseAttackSpeedRatio * (AttackSpeedMod-1))
         --print(AttackSpeed)
-        local JinxExcited		= myHero.BuffData:GetBuff("JinxPassiveKillAttackSpeed").Count_Alt > 0
-        local LethalTempo		= myHero.BuffData:GetBuff("ASSETS/Perks/Styles/Precision/LethalTempo/LethalTempo.lua")
-        local Stacks			= LethalTempo.Count_Int
-        --print(Stacks)
-        if Stacks >= 6 or JinxExcited then
+        local JinxExcited       = myHero.BuffData:GetBuff("JinxPassiveKillAttackSpeed").Count_Alt > 0
+        local LethalTempo       = myHero.BuffData:GetBuff("ASSETS/Perks/Styles/Precision/LethalTempo/LethalTempo.lua")
+        local Stacks            = LethalTempo.Count_Int
+         --print(Stacks)
+        if Stacks == 6 or JinxExcited then
              return AttackSpeed
         end
 
         if myHero.ChampionName == "Zeri" then
             return math.min(AttackSpeed, 1.5)
         end
-        
+
         return math.min(AttackSpeed, 2.5);    
     end,   
     IsValidMinion = function(self,Minion)
@@ -589,10 +534,6 @@ Orbwalker = {
         local TurretList    = ObjectManager.TurretList
         local Missiles      = ObjectManager.MissileList
         local PlayerMissileSpeed = myHero.AttackInfo.Data.MissileSpeed
-        --expiremental jayce adjustment to fix lasthits
-        if myHero.ChampionName == "Jayce" then
-            PlayerMissileSpeed = 1200
-        end
         if myHero.ChampionName == "Aphelios" then
             --print(1)
             if myHero.BuffData:GetBuff("ApheliosGravitumManager").Valid then
@@ -628,7 +569,7 @@ Orbwalker = {
         if myHero.AttackRange > 300 then
             PlayerAttackTime   = PlayerAttackTime + (self:GetDistance(myHero.Position, Minion.Position)/PlayerMissileSpeed)
         end
-        
+
         local Damage            = 0
         local HeroDamage        = 0
         local IncomingMissiles  = {}
@@ -766,48 +707,29 @@ Orbwalker = {
         end
         return false
     end,
-    GetPlayerDamage = function(self, Minion)
+    GetLaneManagementList = function(self, Range)
+        local LasthitList = {}
+        local PrepareList = {}
+        
         local CritChance = myHero.CritChance
         if myHero.ChampionName == "Jhin" and myHero.Ammo == 1 then
             CritChance = 1.0
         end
-        local PlayerDamage = math.floor((myHero.BaseAttack + myHero.BonusAttack + self.ExtraDamage) * (100/(100+Minion.Armor))) * math.max(1.0, math.min(2.0, math.floor(CritChance+1.5))) --gamble a bit with crit 
-                
-        if myHero.ChampionName == "Zeri" then
-            local passive = myHero.BuffData:GetBuff("zeriqpassiveready")
-            if passive.Valid then
+        --print(CritChance)
+        local Turret    = nil
+        local Minions   = self:SortList(self:GetEnemyMinionsInRange(myHero.Position, Range), "MAXRANGE")
+        for _, Minion in pairs(Minions) do
+            if self:PlayerMissileOnTheWay(Minion) == false then
+                --if myHero.ChampionName == "Zeri" and (Minion.Health / Minion.MaxHealth) > 0.35 then return nil end
+                local PlayerDamage                      = math.floor((myHero.BaseAttack + myHero.BonusAttack + self.ExtraDamage) * (100/(100+Minion.Armor))) * math.max(1.0, math.min(2.0, math.floor(CritChance+1.5))) --gamble a bit with crit 
                 if myHero.ChampionName == "Zeri" and (Minion.Health / Minion.MaxHealth) > 0.35 then
                     PlayerDamage = 15 + (25 / 17) * (self:GetPlayerLevel() - 1) * (0.7025 + 0.0175 * (self:GetPlayerLevel() - 1)) + myHero.AbilityPower * 0.04
                 end
                 if myHero.ChampionName == "Zeri" and (Minion.Health / Minion.MaxHealth) <= 0.35 then
                     PlayerDamage = 4 * 15 + (4 * 25 / 17) * (self:GetPlayerLevel() - 1) * (0.7025 + 0.0175 * (self:GetPlayerLevel() - 1)) + myHero.AbilityPower * 0.16
-                end 
-            else
-                PlayerDamage = (5 + (3 * myHero:GetSpellSlot(0).Level)) + (myHero.BaseAttack + myHero.BonusAttack) / 100 * (100 + (5 * myHero:GetSpellSlot(0).Level))
-            end
-        end
-
-        if myHero.BuffData:GetBuff("6672buff").Count_Alt >= 2 then
-            PlayerDamage = PlayerDamage + (50 * (0.4 * myHero.BonusAttack))
-        end
-
-        for i = 6 , 11 do
-            local Slot = myHero:GetSpellSlot(i)
-            if Slot.Info.Name == "BloodthirsterDummySpell" then
-                PlayerDamage = PlayerDamage + 20
-            end
-        end
-        return PlayerDamage
-    end,
-    GetLaneManagementList = function(self, Range)
-        local LasthitList = {}
-        local PrepareList = {}
-        local PushList = {}
-        local Turret    = nil
-        local Minions   = self:SortList(self:GetEnemyMinionsInRange(myHero.Position, Range), "MAXRANGE")
-        for _, Minion in pairs(Minions) do
-            if self:PlayerMissileOnTheWay(Minion) == false then
-                local PlayerDamage = self:GetPlayerDamage(Minion)
+                end
+                --print(PlayerDamage)
+                --print(PlayerDamage)
                 local IncomingDamage, HeroDamage, IncomingMissiles   = self:GetDamageBeforePlayer(Minion)
 
                 IncomingDamage                          = math.floor(IncomingDamage)
@@ -817,9 +739,8 @@ Orbwalker = {
                     if CombinedDamage >= Minion.Health then --Minion can be lasthitted
                         LasthitList[#LasthitList+1] = Minion
                     end
-
                     if Minion.Team == 300 then
-                        PushList[#PushList+1] = Minion
+                        PrepareList[#PrepareList+1] = Minion
                     end 
 
                     Turret = self:CheckTurretAggro(Minion)
@@ -840,91 +761,92 @@ Orbwalker = {
                                 LasthitList[#LasthitList+1] = Minion 
                             end 
                         end
+                    else
+                        PrepareList[#PrepareList+1] = Minion
                     end      
                 end
             end
-
-            if not Turret then
-                local AttackSpeed               = self:GetAttackSpeed()
-                local PlayerDamage              = self:GetPlayerDamage(Minion)
-    
-                local IncomingDamage            = math.floor(self:GetDamageBeforePlayer(Minion))
-                local AllyMinions               = self:GetAllyMinionsInRange(Minion.Position, 400)
-                if #AllyMinions == 0 then
-                    PushList[#PushList+1] = Minion
-                end
-    
-                local CombinedDamage = PlayerDamage + IncomingDamage
-                local WaitCondition1 = (IncomingDamage == 0 and Minion.Health - PlayerDamage < (PlayerDamage/AttackSpeed))
-                local WaitCondition2 = (IncomingDamage > PlayerDamage and Minion.Health - CombinedDamage  < (PlayerDamage * 0.75))
-                local WaitCondition3 = (Minion.Health - CombinedDamage <= 155)
-    
-                if myHero.ChampionName == "Zeri" then
-                    WaitCondition3 = (Minion.Health - CombinedDamage <= 200)
-                end
-    
-                if WaitCondition1 == false and WaitCondition2 == false and not WaitCondition3 then
-                    PushList[#PushList+1] = Minion
-                else
-                    if self.AlwaysPush.Value == 0 then
-                        if WaitCondition3 and #AllyMinions >= 2 and IncomingDamage > 0 then
-                            self.WaitForLasthit = true
-                            self.WaitMinion = Minion
-                        end
-                    end
-                end
-            end
         end
-
         if #LasthitList > 0 then
             return LasthitList, {}
         end
 
-        if self.WaitForLasthit == true and self.WaitForLastHitTimer == nil then
-            self.WaitForLastHitTimer = GameClock.Time + 0.1
-        end
+        local WaitForLasthit = false
+        local PushList = {}
+        for _, Minion in pairs(PrepareList) do
+            --if myHero.ChampionName == "Zeri" and (Minion.Health / Minion.MaxHealth) <= 0.35 then return nil end
+            local AttackSpeed               = self:GetAttackSpeed()
+            local PlayerDamage              = math.floor((myHero.BaseAttack + myHero.BonusAttack + self.ExtraDamage) * (100/(100+Minion.Armor)))
+            if myHero.ChampionName == "Zeri" and (Minion.Health / Minion.MaxHealth) > 0.35 then
+                PlayerDamage = 15 + (25 / 17) * (self:GetPlayerLevel() - 1) * (0.7025 + 0.0175 * (self:GetPlayerLevel() - 1)) + myHero.AbilityPower * 0.04
+            end
+            if myHero.ChampionName == "Zeri" and (Minion.Health / Minion.MaxHealth) <= 0.35 then
+                PlayerDamage = 4 * 15 + (4 * 25 / 17) * (self:GetPlayerLevel() - 1) * (0.7025 + 0.0175 * (self:GetPlayerLevel() - 1)) + myHero.AbilityPower * 0.16
+            end
+            local IncomingDamage            = math.floor(self:GetDamageBeforePlayer(Minion))
+            local AllyMinions               = self:GetAllyMinionsInRange(Minion.Position, 200)
+            if #AllyMinions == 0 then
+                PushList[#PushList+1] = Minion
+            end
 
+            local CombinedDamage            = PlayerDamage + IncomingDamage
+            local WaitCondition1 = (IncomingDamage == 0 and Minion.Health - PlayerDamage < (PlayerDamage/AttackSpeed) * self.LaneclearMode.Value)
+            local WaitCondition2 = (IncomingDamage > PlayerDamage and Minion.Health - CombinedDamage  < (PlayerDamage) * self.LaneclearMode.Value + 1)
+            if #AllyMinions > 0 then
+                if WaitCondition1 == false and WaitCondition2 == false then
+                    PushList[#PushList+1] = Minion
+                else
+                    WaitForLasthit = true
+                end
+            end
+        end
+        
         if #PushList > 0 then 
-            if self.WaitForLasthit then
+            if WaitForLasthit then
                 return LasthitList, {}
             else
                 return LasthitList, PushList
             end
         end
 
-		local Turrets = self:SortList(ObjectManager.TurretList, "MAXHP")
-		for I, Turret in pairs(Turrets) do
-			if Turret.Team ~= myHero.Team then
-				if self:GetDistance(myHero.Position, Turret.Position) < (Range + 55) then
-					if Turret.IsTargetable and Turret.IsInvincible == false then
-                        PushList[#PushList+1] = Turret
-					end
-				end
-			end
-		end
+        if Turret then
+            return self:SortAsTurretTargetList(LasthitList, Turret.Position), self:SortAsTurretTargetList( {PrepareList[1]}, Turret.Position)
+        end   
+
+        local Turrets = self:SortList(ObjectManager.TurretList, "MAXHP")
+        for I, Turret in pairs(Turrets) do
+            if Turret.Team ~= myHero.Team then
+                if self:GetDistance(myHero.Position, Turret.Position) < (Range + 55) then
+                    if Turret.IsTargetable and Turret.IsInvincible == false then
+                        PrepareList[#PrepareList+1] = Turret
+                    end
+                end
+            end
+        end
 
         local Inhibs = ObjectManager.InhibList
-		for I, Inhib in pairs(Inhibs) do
-			if Inhib.Team ~= myHero.Team then
-				if self:GetDistance(myHero.Position, Inhib.Position) < (Range + 200) then
-					if Inhib.IsTargetable and Inhib.IsInvincible == false then
-                        PushList[#PushList+1] = Inhib
-					end
-				end
-			end
-		end
+        for I, Inhib in pairs(Inhibs) do
+            if Inhib.Team ~= myHero.Team then
+                if self:GetDistance(myHero.Position, Inhib.Position) < (Range + 200) then
+                    if Inhib.IsTargetable and Inhib.IsInvincible == false then
+                        PrepareList[#PrepareList+1] = Inhib
+                    end
+                end
+            end
+        end
 
         local Nexuss = ObjectManager.NexusList
-		for I, Nexus in pairs(Nexuss) do
-			if Nexus.Team ~= myHero.Team then
-				if self:GetDistance(myHero.Position, Nexus.Position) < (Range + 300) then
-					if Nexus.IsTargetable and Nexus.IsInvincible == false then
+        for I, Nexus in pairs(Nexuss) do
+            if Nexus.Team ~= myHero.Team then
+                if self:GetDistance(myHero.Position, Nexus.Position) < (Range + 300) then
+                    if Nexus.IsTargetable and Nexus.IsInvincible == false then
                         return {Nexus}, {Nexus}
-					end
-				end
-			end
-		end
-        return LasthitList, PushList
+                    end
+                end
+            end
+        end
+
+        return LasthitList, PrepareList
     end,
     Enable = function(self)
         self.Enabled = 1
@@ -934,49 +856,36 @@ Orbwalker = {
     end,
     --Kiting functions
     ActionReady = function(self)
-        local Timer 		= os.clock() -  self.LastMoveTime
-        local APMTimer 		= (60000 / Settings.ActionsPerMinute) / 1000
+        local Timer         = os.clock() -  self.LastMoveTime
+        local APMTimer      = (60000 / Settings.ActionsPerMinute) / 1000
         return Timer > APMTimer 
     end,    
     GetPlayerAttackDelay = function(self)
         local AttackSpeed = self:GetAttackSpeed()
-        local Delay = (1 / AttackSpeed) --1.0f/((PlayerAttackSpeed + 1.0f) * 0.658f);
-        -- if myHero.ChampionName == "Kalista" and AttackSpeed > 2 then
-        --     return Delay * (1 + AttackSpeed/15)
-        -- end
-        -- quicker AA after AA
-        return Delay
+        if myHero.ChampionName == "Graves" then
+            return (1 / AttackSpeed) / 2
+        end
+        return (1 / AttackSpeed)    
     end,
     GetPlayerAttackWindup = function(self)
-        local AttackTime 		    = self:GetPlayerAttackDelay()
-        local WindupPercent 		= (0.3 + myHero.CharData.CastTimeAdd)
-        local WindupModifier		= myHero.CharData.CastTimeMod
+        local AttackTime            = self:GetPlayerAttackDelay()
+        local WindupPercent         = (0.3 + myHero.CharData.CastTimeAdd)
+        local WindupModifier        = myHero.CharData.CastTimeMod
         local BaseAttackSpeed       = myHero.CharData.BaseAttackSpeed
-        local BonusAttackSpeed      = math.ceil((myHero.AttackSpeedMod - 1) * 100)
         local BaseWindupTime        = (1 / BaseAttackSpeed) * WindupPercent
-        local Windup                = math.min(AttackTime, BaseWindupTime + ((AttackTime * WindupPercent) - BaseWindupTime) * WindupModifier)
-        if myHero.ChampionName == "Senna" then
-            Windup = Windup*0.6
-        end   
-        if myHero.ChampionName == "Graves" then
-           Windup = Windup*0.5 
-        end
-        if self.WindUpSlider.Value ~= 0 then
-            return Windup * (self.WindUpSlider.Value / 100)
-        end
-        return Windup
+        return BaseWindupTime + ((AttackTime * WindupPercent) - BaseWindupTime) * WindupModifier --lol wiki
     end,
     IsAutoAttackMissile = function(self, Name)
         if string.find(Name, "Attack", 1) ~= nil then
             return true
         end
         local Missiles = {}
-        Missiles["Caitlyn"] 		= {"caitlynheadshotmissile"}
-        Missiles["Ashe"] 			= {"frostarrow"}
-        Missiles["Kennen"] 		    = {"kennenmegaproc"}
-        Missiles["Quinn"] 			= {"quinnwenhanced"}
-        Missiles["Vayne"] 			= {"vaynecondemn"}
-        Missiles["Jhin"] 			= {"jhine"}
+        Missiles["Caitlyn"]         = {"caitlynheadshotmissile"}
+        Missiles["Ashe"]            = {"frostarrow"}
+        Missiles["Kennen"]          = {"kennenmegaproc"}
+        Missiles["Quinn"]           = {"quinnwenhanced"}
+        Missiles["Vayne"]           = {"vaynecondemn"}
+        Missiles["Jhin"]            = {"jhine"}
     
         local PossibleAutos = Missiles[myHero.ChampionName]
         if PossibleAutos then
@@ -990,17 +899,17 @@ Orbwalker = {
     end,   
     IsSpecialAttack = function(self, Name)
         local Autos = {}
-        Autos["MasterYi"] 		= {"masteryidoublestrike"}
-        Autos["Garen"] 			= {"garenslash2"}
-        --Autos["Kennen"] 		= {"kennenmegaproc"}
-        Autos["Renekton"] 		= {"renektonexecute", "renektonsuperexecute"}			
-        Autos["Vayne"] 			= {"vaynecondemn"}
-        Autos["Jhin"] 			= {"jhine"}
-        Autos["Rengar"] 		= {"rengarnewpassivebuffdash"}
-        Autos["Trundle"] 		= {"trundleq"}
-        Autos["XinZhao"] 		= {"xinzhaoqthrust1","xinzhaoqthrust2","xinzhaoqthrust3"}
-        Autos["Pantheon"] 		= {"pantheoneshieldslam"}
-        Autos["Viktor"] 		= {"viktorqbuff"}
+        Autos["MasterYi"]       = {"masteryidoublestrike"}
+        Autos["Garen"]          = {"garenslash2"}
+        --Autos["Kennen"]       = {"kennenmegaproc"}
+        Autos["Renekton"]       = {"renektonexecute", "renektonsuperexecute"}           
+        Autos["Vayne"]          = {"vaynecondemn"}
+        Autos["Jhin"]           = {"jhine"}
+        Autos["Rengar"]         = {"rengarnewpassivebuffdash"}
+        Autos["Trundle"]        = {"trundleq"}
+        Autos["XinZhao"]        = {"xinzhaoqthrust1","xinzhaoqthrust2","xinzhaoqthrust3"}
+        Autos["Pantheon"]       = {"pantheoneshieldslam"}
+        Autos["Viktor"]         = {"viktorqbuff"}
     
         local PossibleAutos = Autos[myHero.ChampionName]
         if PossibleAutos then
@@ -1012,14 +921,74 @@ Orbwalker = {
         end
         return false
     end,  
-    CanLasthit = function(self, Target)
-        local IncomingDamage		= 0
-        local TargetArmorMod 		= 100 / (100 + Target.Armor)
-        local PlayerDamage 			= myHero.BaseAttack + myHero.BonusAttack + self.ExtraDamage
+    CanWaveClear = function(self, Target)
+        if Target.Team == 300 then -- if Jungle then dont wait for lasthitting XD
+            return true 
+        end
+    
+        local TargetArmorMod        = 100 / (100 + Target.Armor)
+        local PlayerDamage          = (myHero.BaseAttack + myHero.BonusAttack + self.ExtraDamage) * TargetArmorMod
         if myHero.ChampionName == "Zeri" then
             PlayerDamage = 4 * 15 + (4 * 25 / 17) * (self:GetPlayerLevel() - 1) * (0.7025 + 0.0175 * (self:GetPlayerLevel() - 1))
         end
-        local PlayerMissileSpeed	= myHero.AttackInfo.Data.MissileSpeed
+        local AttackSpeed           = myHero.AttackSpeedMod
+    
+        if #self:GetAllyMinionsInRange(Target.Position, 560) <= 0 then
+            return true
+        end
+    
+        if AttackSpeed < 1.85 then -- Critic
+            if #self:GetAllyMinionsInRange(Target.Position, 560) > 0 then
+                local MinionList = ObjectManager.MinionList 
+                for i, Minion in pairs(MinionList) do   
+                    if Minion.Team ~= myHero.Team and Minion.IsDead == false then
+                        if self:GetDistance(myHero.Position, Minion.Position) <= myHero.AttackRange + 100 then
+                            if Minion.Health - PlayerDamage <= PlayerDamage * 1.065 then
+                                return false
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    
+        local DmgMod = 0 -- Critic: Made DmgMod for different AttackSpeeds
+        local Count = #self:GetAllyMinionsInRange(Target.Position, 650) * (self.LaneclearMode.Value / 100)
+        -- if AttackSpeed < 1.5 then
+        --     DmgMod = 0.9 * Count
+        -- end
+        -- if AttackSpeed > 1.5 and AttackSpeed < 1.95 then
+        --     DmgMod = 0.9 * Count
+        -- end
+        -- if AttackSpeed > 1.95 and AttackSpeed < 2.27  then
+        --     DmgMod = 0.9 * Count
+        -- end
+        -- if AttackSpeed > 2.27 and AttackSpeed < 2.6  then
+        --     DmgMod = 0.9 * Count
+        -- end
+        -- if AttackSpeed > 2.6 and AttackSpeed < 2.9 then
+        --     DMgMod = 0.9 * Count
+        -- end
+        -- if AttackSpeed >= 2.9 then
+        --     DmgMod = 0.9 * Count
+        -- end
+
+        DmgMod = 0.5 * Count
+
+        if Target.Health - PlayerDamage <= PlayerDamage * DmgMod then -- Critic: Modded from 1.4 to DmgMod
+            return false
+        end
+    
+        return true
+    end,
+    CanLasthit = function(self, Target)
+        local IncomingDamage        = 0
+        local TargetArmorMod        = 100 / (100 + Target.Armor)
+        local PlayerDamage          = myHero.BaseAttack + myHero.BonusAttack + self.ExtraDamage
+        if myHero.ChampionName == "Zeri" then
+            PlayerDamage = 4 * 15 + (4 * 25 / 17) * (self:GetPlayerLevel() - 1) * (0.7025 + 0.0175 * (self:GetPlayerLevel() - 1))
+        end
+        local PlayerMissileSpeed    = myHero.AttackInfo.Data.MissileSpeed
         if myHero.ChampionName == "Aphelios" then
             --print(1)
             if myHero.BuffData:GetBuff("ApheliosGravitumManager").Valid then
@@ -1037,41 +1006,41 @@ Orbwalker = {
             end
         end
         if myHero.AttackRange < 300 then
-            PlayerMissileSpeed 		= math.huge
+            PlayerMissileSpeed      = math.huge
         end
-        local PlayerDistance		= math.max(0, self:GetDistance(myHero.Position, Target.Position) - myHero.CharData.BoundingRadius) -- Player Missiles doesnt spawn directly at center of champ, so distance is a bit shorter -> wait a bit longer to shoot
-        local PlayerTime			= (PlayerDistance/PlayerMissileSpeed) + self.Windup
+        local PlayerDistance        = math.max(0, self:GetDistance(myHero.Position, Target.Position) - myHero.CharData.BoundingRadius) -- Player Missiles doesnt spawn directly at center of champ, so distance is a bit shorter -> wait a bit longer to shoot
+        local PlayerTime            = (PlayerDistance/PlayerMissileSpeed) + self.Windup
         --print(PlayerMissileSpeed)
         local Minions  = ObjectManager.MinionList
         local Missiles = ObjectManager.MissileList
     
         local MissileFilter = {}
         for I,Object in pairs(ObjectManager.MissileList) do
-            local Index 	= Object.Index
-            local Name		= Object.Name
+            local Index     = Object.Index
+            local Name      = Object.Name
             if Index > 0 and Index < 3500 and string.len(Name) > 0 and MissileFilter[Index] == nil then
                 MissileFilter[Index] = Object
             end
         end
     
         for I,Missile in pairs(MissileFilter) do
-            local SourceID				= Missile.SourceIndex
-            local TargetID				= Missile.TargetIndex
-            local MissileSource			= nil
-            local MissileTarget			= nil
+            local SourceID              = Missile.SourceIndex
+            local TargetID              = Missile.TargetIndex
+            local MissileSource         = nil
+            local MissileTarget         = nil
             if SourceID > 0 and SourceID < 3500 then
-                MissileSource 			= Minions[SourceID]
+                MissileSource           = Minions[SourceID]
             end
             if TargetID > 0 and TargetID < 3500 then
-                MissileTarget 			= Minions[TargetID]
+                MissileTarget           = Minions[TargetID]
             end
             if I == Missile.Index and MissileTarget and MissileSource and MissileSource.IsMinion and MissileSource.IsDead == false and MissileSource.AttackRange > 300 then
-                local MissileDistance		= self:GetDistance(Missile.Position, Target.Position)
+                local MissileDistance       = self:GetDistance(Missile.Position, Target.Position)
                 if MissileDistance > 0 and MissileTarget.Index == Target.Index and Missile.Team == myHero.Team then
-                    local MissileDamage 	= (MissileSource.BaseAttack * TargetArmorMod)
-                    local MissileTime		= MissileDistance / 650
+                    local MissileDamage     = (MissileSource.BaseAttack * TargetArmorMod)
+                    local MissileTime       = MissileDistance / 650
                     if MissileTime < PlayerTime then
-                        IncomingDamage 		= IncomingDamage + MissileDamage
+                        IncomingDamage      = IncomingDamage + MissileDamage
                     end
                 end
             end
@@ -1096,90 +1065,55 @@ Orbwalker = {
         return PlayerMissiles
     end,
     CanAttackReset = function(self)
-        --myHero.BuffData:ShowAllBuffs()
-        print(myHero.ActiveSpell.Info.Name)
         local AAResets = {}
-        -- all AA resets that aren't working properly should be adjust in the champion script like so:
-        -- When casting the ability check if Orbwalker.ResetReady == 1
-        AAResets["Aatrox"] 	    = {"AatroxE"}
-        AAResets["Blitzcrank"] 	= {"powerfist"}
-        AAResets["Camille"] 	= {"CamilleQ"}
-        AAResets["Chogath"] 	= {"VorpalSpikes"}
-        AAResets["Darius"] 		= {"dariusnoxiantacticsonh", "DariusNoxianTacticsONH"}
-        AAResets["DrMundo"] 	= {"DrMundoE"}		
-        --AAResets["Ekko"] 	    = {"EkkoE"} resetready check in its own script
-        AAResets["Elise"] 	    = {"EliseSpiderW"}		
-        AAResets["Fiora"] 		= {"fioraflurry"}	
-        AAResets["Fizz"] 		= {"FizzW"}	
-        AAResets["Hecarim"] 	= {"hecarimrapidslash", "hecarimrampspeed"}		
-        AAResets["Gangplank"] 	= {"parley", "GangplankQProceed"}
-        -- couldn't test rengar
-        AAResets["Rengar"] 		= {"rengarq", "rengarqemp"}		
-        AAResets["Sivir"] 		= {"sivirwmarker"}		
-        AAResets["Garen"] 		= {"garenq"}		
-        --illaoi
-        AAResets["Jax"] 		= {"jaxempowertwo"}		
-        AAResets["Jayce"] 		= {"jaycehypercharge"}		
-        AAResets["Kassadin"] 	= {"netherblade"}
-        AAResets["Kayle"] 	    = {"kaylee"}
-        AAResets["Kindred"]     = {"kindredqasbuff"}		
-        AAResets["Leona"] 		= {"leonashieldofdaybreak"}		
-        AAResets["Lucian"]      = {"lucianpassivebuff"}
-        AAResets["Malphite"]    = {"MalphiteThunderclap"}
-        -- doesn't work like that, need to adjust
-        -- AAResets["Maokai"]      = {"maokaipassiveready"}
-        AAResets["MasterYi"] 	= {"Meditate"}		
-        AAResets["Nasus"] 		= {"nasusq"}		
-        AAResets["Nidalee"] 	= {"takedown"}
-        AAResets["Nilah"] 	    = {"NilahE"}
-        AAResets["Olaf"] 	    = {"OlafFrenziedStrikes"}
-        AAResets["Pantheon"]    = {"OlafFrenziedStrikes"}	
-        AAResets["Mordekaiser"]	= {"mordekaisermaceofspades"}		
-        AAResets["Poppy"] 		= {"poppydevastatingblow"}
-        -- does not work as intended either
-        -- AAResets["RekSai"] 		= {"RekSaiQAttack", "RekSaiQAttack2", "RekSaiQAttack3"}
-        AAResets["Renekton"] 	= {"renektonpreexecute", "RenektonExecute"}
-        --rengar
-        --samira
-        AAResets["Sejuani"] 	= {"SejuaniE2"}
-        AAResets["Sett"] 	    = {"SettQ"}
-        AAResets["Shyvana"] 	= {"ShyvanaDoubleAttack"}
-        AAResets["Sivir"] 	    = {"SivirW"}
-        AAResets["Sona"] 	    = {"SonaEPassiveAttack"}
-        AAResets["Talon"] 		= {"TalonQAttack"}
-        AAResets["Trundle"] 	= {"TrundleQ", "TrundleTrollSmash"}
-        AAResets["Vayne"] 		= {"vaynetumblebonus"}
-        AAResets["Vi"] 			= {"vie"}
-        AAResets["Viego"] 		= {"viegowdash"}
-        -- AAResets["Volibear"] 	= {"VolibearQ"} NEED Q resetready check in its own script
-        -- wukong needs Q ResetReady check in its own script
-        AAResets["MonkeyKing"] 	= {"MonkeyKingDoubleAttack"}	
-        AAResets["XinZhao"] 	= {"XinZhaoQ"}
-        AAResets["Yorick"] 		= {"yorickspectral", "yorickqbuff"}
-        AAResets["Zac"] 		= {"ZacQ"}
-        --zeri doesnt show E in printing..
-        --zoe
-        AAResets["Riven"] 		= {"RivenTriCleave"}
+        AAResets["Blitzcrank"]  = {"powerfist"}
+        AAResets["Darius"]      = {"dariusnoxiantacticsonh"}
+        AAResets["DrMundo"]     = {"DrMundoE"}      
+        AAResets["Gangplank"]   = {"parley"}
+        AAResets["Rengar"]      = {"rengarq", "rengarqemp"}     
+        AAResets["Sivir"]       = {"sivirwmarker"}      
+        AAResets["Garen"]       = {"garenq"}        
+        AAResets["Jax"]         = {"jaxempowertwo"}     
+        AAResets["Fiora"]       = {"fioraflurry"}       
+        AAResets["Hecarim"]     = {"hecarimrapidslash"}     
+        AAResets["Jayce"]       = {"jaycehypercharge"}
+        AAResets["Kayle"]       = {"kaylee"}        
+        AAResets["Kassadin"]    = {"netherblade"}
+        AAResets["Leona"]       = {"leonashieldofdaybreak"}     
+        --AAResets["Lucian"]      = {"lucianpassivebuff"}
+        AAResets["MonkeyKing"]  = {"monkeykingdoubleattack"}        
+        AAResets["Mordekaiser"] = {"mordekaisermaceofspades"}       
+        AAResets["Nasus"]       = {"nasusq"}        
+        AAResets["Poppy"]       = {"poppydevastatingblow"}
+        AAResets["RekSai"]      = {"reksaiq"}
+        AAResets["Renekton"]    = {"renektonpreexecute"}
+        AAResets["Shyvana"]     = {"shyvanadoubleattack"}
+        AAResets["Nidalee"]     = {"takedown"}
+        AAResets["Talon"]       = {"talonnoxiandiplomacy"}
+        AAResets["Trundle"]     = {"trundletrollsmash"}
+        AAResets["Vayne"]       = {"vaynetumblebonus"}
+        AAResets["Vi"]          = {"vie"}
+        AAResets["Volibear"]    = {"volibearq"}
+        AAResets["XinZhao"]     = {"xenzhaocombotarget"}
+        AAResets["Yorick"]      = {"yorickspectral", "yorickqbuff"}
+        --AAResets["Riven"]         = {"RivenTriCleave"}
     
         local PossibleBuffs = AAResets[myHero.ChampionName]
         if PossibleBuffs then
             for i = 1, #PossibleBuffs do
                 local Buffname = PossibleBuffs[i]
                 local Buff = myHero.BuffData:GetBuff(Buffname)
-                if Buff.Count_Alt > 0 and Buff.Valid == true and (GameClock.Time - Buff.StartTime) < 0.125 then -- used to be 0.1 need to test
+                if Buff.Count_Alt > 0 and Buff.Valid == true and (GameClock.Time - Buff.StartTime) < 0.1 then
                     return true
                 end
-            end	
+            end 
         end
-
-        if myHero.ChampionName == "Ashe" then
-            local Buff = myHero.BuffData:GetBuff("AsheQ")
-            local QBuff = myHero.BuffData:GetBuff("AsheQAttack").Valid
-            if Buff ~= nil and Buff.Count_Alt == 0 and QBuff and GameClock.Time - Buff.StartTime < 0.085 then
+        DashResets = { "Lucian"}
+        for _, DashChampName in pairs(DashResets) do
+            if myHero.ChampionName == DashChampName and myHero.AIData.Dashing and myHero.AIData.Moving then
                 return true
             end
         end
-
         if myHero.ChampionName == "Aphelios" then
             local Crescendum = myHero.BuffData:GetBuff("ApheliosCrescendumManager")
             local Crescendum_Valid = Crescendum.Valid or Crescendum.Count_Alt > 0
@@ -1195,131 +1129,111 @@ Orbwalker = {
                 return true
             end
         end
-        DashResets = { "Lucian", "Riven", "Vayne", "Belveth", "Graves" }
-        for _, DashChampName in pairs(DashResets) do
-            if myHero.ChampionName == DashChampName and myHero.AIData.Dashing then
-                return true
-            end
-        end
         return false
-    end,
-    HasNoMissiles = function(self)
-        if myHero.AttackRange < 300 then return true end
-
-        local NoMissileRanged = {"Senna", "Kayle"}
-        for _, Name in pairs(NoMissileRanged) do
-            if myHero.ChampionName == Name then
-                return true
-            end
-        end
-        return false
-    end,
-    ResetTimers = function(self)
-        self.Windup         = 0
-        self.Attack         = 0
-        self.ResetReady     = 0
-        self.AttackTimer    = 0
-        self.WindupTimer    = 0
     end,
     ManageAttackTimer = function(self)
-        local WindupTime        = os.clock() - self.WindupTimer
-        local AttackTime        = os.clock() - self.AttackTimer
-        
-        if (myHero.CharacterState&1 == 0 or myHero.AIData.Dashing) and myHero.ChampionName ~= "Kalista" then
-            self:ResetTimers()
-            return  
+        if myHero.ActiveSpell.Info.Name == "YorickQAttack" then --maybe function for other uncancelable windups TODO
+            self.Windup             = 0
+            self.Attack             = 0
+            self.LastAttackTime     = os.clock()
         end
+        if self:CanAttackReset() then
+             self.Windup         = 0
+             self.Attack         = 0
+             self.LastAttackTime = 0 
+        end
+        local Timer = os.clock() - self.LastAttackTime
         if self.Windup == 1 then
-            self.WindupTimer = os.clock()
-            local WindupCheck = (AttackTime > self.LastWindup*2)
-            if string.len(myHero.ActiveSpell.Info.Name) == 0 and ((self.PrevTarget and (self.PrevTarget.IsDead or self.PrevTarget.IsTargetable == false)) or WindupCheck) then
-                self:ResetTimers()
-            end    
-        end
-        if string.len(myHero.ActiveSpell.Info.Name) > 0 then
-            if self.Windup == 1 then 
-                self.ResetReady     = 1
-
-                if myHero.ChampionName ~= "Kalista" then
-                    if myHero.ChampionName == "Zeri" then
-                        self.AttackTimer     = self.WindupTimer
-                    else
-                        self.AttackTimer     = self.WindupTimer - math.min(0.2, self.LastWindup*2)
-                    end
-                else
-                    if self:GetAttackSpeed() <= 2.5 then
-                        self.AttackTimer = self.WindupTimer + (GameHud.Ping/2000)
-                    end
+            if myHero.ActiveSpell.IsWindupFinished then
+                self.Windup         = 0
+                return
+            end
+            if (self.PrevTarget and self.PrevTarget.IsDead) then
+                self.Windup         = 0
+                self.Attack         = 0
+                self.LastAttackTime = 0
+                return
+            end
+            self.LastAttackTime         = os.clock()
+            --print(myHero.ActiveSpell.Info.Name)
+            if string.len(myHero.ActiveSpell.Info.Name) > 0 then
+                self.LastAttackTime     = os.clock()
+                self.Windup             = 0
+            else
+                local Timer = os.clock() - self.FailSafe
+                if Timer > self.LastWindup*3 then
+                    self.Windup         = 0
+                    self.Attack         = 0
+                    self.LastAttackTime = 0
+                end
+                if Timer > self.LastWindup*self:GetAttackSpeed() and myHero.AIData.Moving then
+                    self.Windup         = 0
+                    self.Attack         = 0
+                    self.LastAttackTime = 0
                 end
             end
-            self.Windup         = 0
         end
-        --print(self.Attack, self.Windup, self.AttackTimer, self.WindupTimer, os.clock())
     end,    
     CanAttack = function(self)
-        local DashCheck         = myHero.AIData.Dashing == false or myHero.ChampionName == "Kalista"
-        local TimerCheck        = (os.clock() - self.AttackTimer) > self:GetPlayerAttackDelay()
-        local LevelCheck        = (self.BlockAALevel.Value == 0 or self:GetPlayerLevel() < self.BlockAALevel.Value)
-        local EvadeCheck        = (self.BlockAttack == 0 or self.BlockAttackForDodge.Value == 0)
-        local ChannelCheck      = (myHero.CharacterState&1) == 1 and string.len(myHero.ActiveSpell.Info.Name) == 0
-        if self.DontAA == 1 then
-            return nil
-        end
-        if myHero.ChampionName == "Riven" then
-            if myHero.AIData.Moving == true and myHero.AIData.Dashing == false and (GameClock.Time - myHero.BuffData:GetBuff("riventricleavesoundone").StartTime > 0 and GameClock.Time - myHero.BuffData:GetBuff("riventricleavesoundone").StartTime < 0.8) or (GameClock.Time - myHero.BuffData:GetBuff("riventricleavesoundtwo").StartTime > 0 and GameClock.Time - myHero.BuffData:GetBuff("riventricleavesoundtwo").StartTime < 0.8) or (GameClock.Time - myHero.BuffData:GetBuff("riventricleavesoundthree").StartTime > 0 and GameClock.Time - myHero.BuffData:GetBuff("riventricleavesoundthree").StartTime < 0.8) then
-                return true
+        if self.Attack == 0 and myHero.BuffData:HasBuffOfType(BuffType.Blind) == false and (myHero.AIData.Dashing == false or myHero.ChampionName == "Kalista") then
+            local Timer = os.clock() - self.LastAttackTime
+            local Delay = math.max(self:GetPlayerAttackWindup(), self:GetPlayerAttackDelay() - (self.LastWindup*math.min(2.0,self:GetAttackSpeed())))
+            if myHero.ChampionName == "Kalista" or myHero.ChampionName == "Senna" then
+                Delay = self:GetPlayerAttackDelay()
             end
-            if myHero.ActiveSpell.Info.Name == "RivenMartyr" then
-                --print("WYT")
-                self.RivenWTimer = os.clock()
+            if self.DontAA == 1 then
+                return nil
             end
-            --print(os.clock() - self.WTimer)
-            if myHero:GetSpellSlot(0).Charges ~= 0 and self.RivenWTimer ~= nil then
-                if (os.clock() - self.RivenWTimer) > 0 and (os.clock() - self.RivenWTimer) < self.LastWindup then
+            if Pyke then
+                if Pyke.QCast == true then return false end
+            end
+            if myHero.ChampionName == "Riven" then
+                if myHero.AIData.Moving == true and myHero.AIData.Dashing == false and (GameClock.Time - myHero.BuffData:GetBuff("riventricleavesoundone").StartTime > 0 and GameClock.Time - myHero.BuffData:GetBuff("riventricleavesoundone").StartTime < 0.8) or (GameClock.Time - myHero.BuffData:GetBuff("riventricleavesoundtwo").StartTime > 0 and GameClock.Time - myHero.BuffData:GetBuff("riventricleavesoundtwo").StartTime < 0.8) or (GameClock.Time - myHero.BuffData:GetBuff("riventricleavesoundthree").StartTime > 0 and GameClock.Time - myHero.BuffData:GetBuff("riventricleavesoundthree").StartTime < 0.8) then
                     return true
                 end
-            end
-        end
-        return (DashCheck and LevelCheck and EvadeCheck) and (self:CanAttackReset() or (TimerCheck and (ChannelCheck or myHero.ChampionName == "Kalista")))
-    end,
-    CanMove = function(self, Target)
-        local TimerCheck        = (self.Attack == 1 and ((os.clock() - self.WindupTimer) > self.LastWindup or myHero.ChampionName == "Kalista" or myHero.ActiveSpell.WindupIsFinished)) 
-        local ClickerCheck      = (self.Attack == 0 and self:ActionReady())
-        local EvadeCheck        = (self.BlockAttack == 1 and self.BlockAttackForDodge.Value == 1)
-        return TimerCheck or ClickerCheck or EvadeCheck 
-    end,
-    IssueAttack = function(self, Position, Target)
-        self.Attack         =   1
-        self.Windup         =   1
-        self.ResetReady     =   0
-        self.LastWindup     =   self:GetPlayerAttackWindup()
-        self.LastDelay      =   self:GetPlayerAttackDelay()            
-        local ChampsOnlyClick = 0
-        if Target and Target.IsHero == true then
-            ChampsOnlyClick = 1
-        end
-        self.LastClick      =   os.clock()
-
-        --print(Target.Name, Target.CharacterState)
-        self.PrevTarget     = Target            
-        if myHero.ChampionName == "Zeri" then
-            local passive = myHero.BuffData:GetBuff("zeriqpassiveready")
-            if passive.Valid then
-                Engine:AttackClick(Position, ChampsOnlyClick)
-            else
-                if Engine:SpellReady("HK_SPELL1") then
-                    Engine:CastSpell("HK_SPELL1", Position, ChampsOnlyClick)
+                if myHero.ActiveSpell.Info.Name == "RivenMartyr" then
+                    --print("WYT")
+                    self.WTimer = os.clock()
+                end
+                --print(os.clock() - self.WTimer)
+                if myHero:GetSpellSlot(0).Charges ~= 0 then
+                    if (os.clock() - self.WTimer) > 0 and (os.clock() - self.WTimer) < self.LastWindup then
+                        return true
+                    end
                 end
             end
-        else
-            Engine:AttackClick(Position, ChampsOnlyClick)
+            return (Timer > Delay and (myHero.CharacterState&1) == 1 and myHero.IsChanneling == false) and (self.BlockAALevel.Value == 0 or self:GetPlayerLevel() < self.BlockAALevel.Value) and (self.BlockAttack == 0 or self.BlockAttackForDodge.Value == 0)
         end
-        self.WindupTimer    =   os.clock()
-        self.AttackTimer    =   os.clock()
+        return false
+    end,
+    CanMove = function(self)
+        if self.Attack == 0 then
+            return self:ActionReady()
+        end
+
+        local Timer  = os.clock() - self.LastAttackTime
+        local Windup = self.LastWindup / (math.max(1.0, math.min(1.5,self:GetAttackSpeed())))
+        return myHero.ActiveSpell.IsWindupFinished or (Timer > Windup or myHero.ChampionName == "Kalista") or (self.BlockAttack == 1 and self.BlockAttackForDodge.Value == 1)
+    end,
+    IssueAttack = function(self, Position)
+        if self.Attack == 0 then
+            self.Attack     =   1
+            self.Windup     =   1
+            self.ResetReady =   0
+            self.LastWindup =   self:GetPlayerAttackWindup()
+            self.LastDelay  =   self:GetPlayerAttackDelay()
+            self.FailSafe   = os.clock()
+            Engine:AttackClick(Position, 0)
+        end
     end,
     IssueMove = function(self, Position)
+        if self.Attack == 1 then
+            self.ResetReady = 1
+        else
+            self.ResetReady = 0
+        end
+            
         self.Attack         = 0
-        self.PrevTarget     = nil            
         self.LastMoveTime   = os.clock()
         local HoldRadius = self.HoldRadius.Value
         if myHero.ChampionName == "Kalista" then
@@ -1329,7 +1243,7 @@ Orbwalker = {
             if self:GetDistance(myHero.Position, Position) > HoldRadius then
                 Engine:MoveClick(Position)
             end
-		else
+        else
             if self:GetDistance(myHero.Position, GameHud.MousePos) > HoldRadius then
                 Engine:MoveClick(nil)
             end
@@ -1337,10 +1251,10 @@ Orbwalker = {
     end,
     Orbwalk = function(self, Target)        
         self.DrawTarget = Target
-        if self:CanMove(Target) then
-            if Target and self:CanAttack() then
-                self:IssueAttack(Target.Position, Target)
-                if myHero.ChampionName ~= "Kalista" then return end
+        if self:CanMove() then
+            if Target and (self:CanAttack() ) then
+                self.PrevTarget = Target
+                return self:IssueAttack(Target.Position)
             end
             return self:IssueMove(self.MovePosition)
         end    
@@ -1348,34 +1262,24 @@ Orbwalker = {
     --Feature functions
     TargetIsImmune = function(self, currentTarget)
         local ImmuneBuffs = {
-            "KayleR", "TaricR", "KarthusDeathDefiedBuff", "KindredRNoDeathBuff", "UndyingRage", "FioraW", "PantheonE", "sionpassivezombie", "ChronoShift"
+            "KayleR", "TaricR", "KarthusDeathDefiedBuff", "KindredRNoDeathBuff", "UndyingRage", "FioraW", "PantheonE",  "WillRevive", "sionpassivezombie", "rebirthready", "willrevive", "ZileanR"
         }
-        -- print(currentTarget.BuffData:ShowAllBuffs())
         for i = 1, #ImmuneBuffs do
             local Buff = ImmuneBuffs[i]
             if currentTarget.BuffData:GetBuff(Buff).Valid then
                 if currentTarget.BuffData:GetBuff("KindredRNoDeathBuff").Valid then
                     local hpPercent = 100 * currentTarget.Health / currentTarget.MaxHealth
-                    if hpPercent < 14 or currentTarget.Health < (currentTarget.MaxHealth * 0.1 + myHero.BaseAttack + myHero.BonusAttack) * 2.1 or currentTarget.Health < (currentTarget.MaxHealth * 0.1 + myHero.AbilityPower * 1.5) then
-                        return true -- Immune
+                    if hpPercent >= 13 then
+                        return false --not immune
                     else
-                        return false
+                        return true
                     end
-                elseif currentTarget.BuffData:GetBuff("UndyingRage").Valid or currentTarget.BuffData:GetBuff("ZileanR").Valid then
+                elseif currentTarget.BuffData:GetBuff("UndyingRage").Valid then
                     local hpPercent = 100 * currentTarget.Health / currentTarget.MaxHealth
-                    if hpPercent < 6 or currentTarget.Health < (myHero.BaseAttack + myHero.BonusAttack) * 2.1 or currentTarget.Health < myHero.AbilityPower * 1.5 then
-                        return true  -- Immune
+                    if hpPercent >= 6 then
+                        return false  --not immune
                     else
-                        return false
-                    end
-                elseif currentTarget.BuffData:GetBuff("PantheonE").Valid then
-                    local TargetPos = currentTarget.Position
-                    local Modifier  = 100
-                    local EPos   = Vector3.new(TargetPos.x + (currentTarget.Direction.x*Modifier),TargetPos.y ,TargetPos.z + (currentTarget.Direction.z*Modifier))
-                    if EPos and self:GetDistance(myHero.Position, currentTarget.Position) > self:GetDistance(myHero.Position, EPos) then
-                        return true  -- Immune
-                    else
-                        return false
+                        return true
                     end
                 end
                 return true
@@ -1383,150 +1287,44 @@ Orbwalker = {
         end
         return false
     end,
-    EnemiesInRange = function(self, Position, Range)
-        local count = 0
-        for _,Hero in pairs(ObjectManager.HeroList) do
-            if Hero.Team ~= myHero.Team and Hero.IsTargetable then
-                if Orbwalker:GetDistance(Hero.Position , Position) < Range then
-                    count = count + 1			
-                end
-            end
-        end
-        return count
-    end,
-    IsCannonAboutToDie = function(self, LasthitList)
-        for i, Minion in pairs(LasthitList) do
-            if not Minion.IsDead and Minion.IsTargetable and self:GetDistance(myHero.Position, Minion.Position) <= 800 then
-                if Minion.ChampionName == "SRU_ChaosMinionSiege" or Minion.ChampionName == "SRU_OrderMinionSiege" then
-                    if Minion.Health <= (myHero.BaseAttack + myHero.BonusAttack) * 1.25 then
-                        return true
-                    end
-                end
-            end
-        end
-        return false
-    end,
     GetTarget = function(self, Mode, Range)
         Mode = Mode:upper() --old champ script compatible
-        local HarassPrio = 0
-        if self.PrioChampHarass.Value == 1 and self:EnemiesInRange(myHero.Position, Orbwalker.OrbRange+5) >= 1 then
-            HarassPrio = 1
-        end
-        if Mode == "LASTHIT" or (Mode == "HARASS" and self.SupportMode.Value == 0 and HarassPrio == 0) then --LASTHIT OVER CHAMPION HARASS
-            local LasthitList, PushList = self:GetLaneManagementList(Range)
-            if LasthitList[1] then
-                local Turret = self:CheckTurretAggro(LasthitList[1])
-                if not Turret then
-                    for i, Minion in pairs(LasthitList) do
-                        if not Minion.IsDead and Minion.IsTargetable and self:GetDistance(myHero.Position, Minion.Position) <= 800 then
-                            if Minion.ChampionName == "SRU_ChaosMinionSiege" or Minion.ChampionName == "SRU_OrderMinionSiege" then -- need to add otherside as well
-                                return Minion
-                            end
-                        end
-                    end
-                else
-                    -- junk way, need to readd preparelist and make order lasthitlist > preparelist > pushlist
-                    local PlayerDamage = nil
-                    local lowestMinion = nil
-                    for i, Minion in pairs(LasthitList) do
-                        if not Minion.IsDead and Minion.IsTargetable then
-                            if lowestMinion == nil then
-                                lowestMinion = Minion
-                            end
-                            if lowestMinion ~= nil then
-                                if Minion.Health < lowestMinion.Health then
-                                    lowestMinion = Minion
-                                end
-                            end
-                        end
-                    end
-                    if lowestMinion ~= nil then
-                        PlayerDamage = self:GetPlayerDamage(lowestMinion)
-                        if lowestMinion.Health <= PlayerDamage then
-                            return lowestMinion
+        if Mode == "LASTHIT" or Mode == "HARASS" then --LASTHIT OVER CHAMPION HARASS
+            local LasthitList, PrepareList = self:GetLaneManagementList(Range)
+            if LasthitList[1] and (self.SupportMode.Value == 0 or Mode == "LASTHIT") then
+                for i, Minion in pairs(LasthitList) do
+                    if not Minion.IsDead and Minion.IsTargetable then
+                        if Minion.ChampionName == "SRU_ChaosMinionSiege" or Minion.ChampionName == "SRU_OrderMinionSiege" then -- need to add otherside as well
+                            return Minion
                         end
                     end
                 end
-                local IsCannonAboutToDie = self:IsCannonAboutToDie(LasthitList)
-                if not IsCannonAboutToDie then
-                    return LasthitList[1]
-                end
+                return LasthitList[1]
             end
         end
         if Mode == "COMBO" or Mode == "HARASS" then
             local TargetList = self:GetTargetSelectorList(myHero.Position, Range)
-            return TargetList[1] 
+            local Target     = TargetList[1] 
+            if Target and Target.IsTargetable and self:TargetIsImmune(Target) == false and (Target.BuffData:GetBuff("gwenw_gweninsidew").Valid == false or self:GetDistance(myHero.Position, Target.Position) <= 475) then
+                if self:GetDistance(Target.Position, myHero.Position) < Range + Target.CharData.BoundingRadius then
+                    return Target
+                end
+            end
         end
         if Mode == "LANECLEAR" then
-            local LasthitList, PushList = self:GetLaneManagementList(Range)
-            local JungleMinions, OffAggro = self:GetJungleMinionsInRange(myHero.Position, Range)
-            if #JungleMinions > 0 and OffAggro == nil then
-                --print("WTF")
-                PushList = self:SortList(JungleMinions, "MAXHP")
-                LasthitList = self:SortList(JungleMinions, "MAXHP")
-            end
+            local LasthitList, PrepareList = self:GetLaneManagementList(Range)
             if LasthitList[1] then
-                local Turret = self:CheckTurretAggro(LasthitList[1])
-                if not Turret then
-                    for i, Minion in pairs(LasthitList) do
-                        if not Minion.IsDead and Minion.IsTargetable and self:GetDistance(myHero.Position, Minion.Position) <= 800 then
-                            if Minion.ChampionName == "SRU_ChaosMinionSiege" or Minion.ChampionName == "SRU_OrderMinionSiege" then -- need to add otherside as well
-                                return Minion
-                            end
-                        end
-                    end
-                else
-                    -- junk way, need to readd preparelist and make order lasthitlist > preparelist > pushlist
-                    local PlayerDamage = nil
-                    local lowestMinion = nil
-                    for i, Minion in pairs(LasthitList) do
-                        if not Minion.IsDead and Minion.IsTargetable then
-                            if lowestMinion == nil then
-                                lowestMinion = Minion
-                            end
-                            if lowestMinion ~= nil then
-                                if Minion.Health < lowestMinion.Health then
-                                    lowestMinion = Minion
-                                end
-                            end
-                        end
-                    end
-                    if lowestMinion ~= nil then
-                        PlayerDamage = self:GetPlayerDamage(lowestMinion)
-                        if lowestMinion.Health <= PlayerDamage then
-                            return lowestMinion
+                for i, Minion in pairs(LasthitList) do
+                    if not Minion.IsDead and Minion.IsTargetable then
+                        if Minion.ChampionName == "SRU_ChaosMinionSiege" or Minion.ChampionName == "SRU_OrderMinionSiege" then -- need to add otherside as well
+                            return Minion
                         end
                     end
                 end
-                local IsCannonAboutToDie = self:IsCannonAboutToDie(LasthitList)
-                if not IsCannonAboutToDie then
-                    return LasthitList[1]
-                end
+                return LasthitList[1]
             end
-            local AllyMinions = self:GetAllyMinionsInRange(myHero.Position, 400)
-            if #AllyMinions == 0 then
-                self.WaitForLasthit = false
-                self.WaitForLastHitTimer = nil
-                self.WaitMinion = nil
-            end
-            if self.WaitMinion ~= nil then
-                if math.floor(self:GetDamageBeforePlayer(self.WaitMinion)) == 0 then
-                    self.WaitForLasthit = false
-                    self.WaitForLastHitTimer = nil
-                    self.WaitMinion = nil
-                end
-            end
-            if self.WaitForLastHitTimer ~= nil then
-                if GameClock.Time >= self.WaitForLastHitTimer then
-                    self.WaitForLasthit = false
-                    self.WaitForLastHitTimer = nil
-                    self.WaitMinion = nil
-                end
-            end
-            if not self.WaitForLasthit then
-                if PushList[#PushList] then
-                    return PushList[#PushList]              
-                end
+            if PrepareList[#PrepareList] then
+                return PrepareList[#PrepareList]              
             end
         end
         return nil
@@ -1573,7 +1371,7 @@ Orbwalker = {
         local WBuff_Check = Target.BuffData:GetBuff("CaitlynWSnare").Count_Alt > 0
         local EBuff_Check = Target.BuffData:GetBuff("CaitlynEMissile").Count_Alt > 0
         if EBuff_Check then
-            self.ETimer 	= os.clock()
+            self.ETimer     = os.clock()
         end
         if WBuff_Check and EBuff_Check == false then
             BuffCount = 1
@@ -1585,40 +1383,6 @@ Orbwalker = {
             BuffCount = 2
         end
         return BuffCount
-    end,
-    GetSummonerKey = function(self, SummonerName)
-        for i = 4 , 5 do
-            if string.find(myHero:GetSpellSlot(i).Info.Name, SummonerName) ~= nil  then
-                return self.KeyNames[i]
-            end
-        end
-        return nil
-    end,
-    SafeFlash = function(self)
-        local Flash = self:Flash_Check()
-    
-        if Flash ~= false then
-            Engine:ReleaseSpell(Flash.Key, nil)
-        end
-    end,
-    Flash_Check = function(self)
-        local Flash = {}
-        Flash.Key = self:GetSummonerKey("SummonerFlash")	
-        if Flash.Key ~= nil then
-            if Engine:SpellReady(Flash.Key) then
-                return Flash
-            end
-        end
-        return false
-    end,
-    Safe_Flash = function(self)
-        if self.UseSafeFlash.Value == 1 then
-            local Flash = self:Flash_Check()
-    
-            if Flash ~= false then
-                Engine:ReleaseSpell(Flash.Key, nil)
-            end
-        end
     end,
     GetCaitlynHeadshotTarget = function(self)
         local Heros = self:SortList(ObjectManager.HeroList, "LOWHP")
@@ -1694,66 +1458,27 @@ Orbwalker = {
             self.TeamHasGP = false
         end
     end,
-    GetAttackRange = function(self)
-        if myHero.ChampionName == "Zeri" or myHero.ChampionName == "Sion" or myHero.ChampionName == "Annie" then
-            if myHero.ChampionName == "Zeri" then
-                local passive = myHero.BuffData:GetBuff("zeriqpassiveready")
-                if passive.Valid then
-                    self.OrbRange = myHero.AttackRange + myHero.CharData.BoundingRadius
-                else
-                    self.OrbRange = (825 - myHero.AttackRange) + myHero.AttackRange + myHero.CharData.BoundingRadius
-                end
-            end
-            if myHero.ChampionName == "Sion" then
-                self.OrbRange = 175 + myHero.CharData.BoundingRadius + 20
-            end
-            if myHero.ChampionName == "Annie" then
-                self.OrbRange = myHero.AttackRange + myHero.CharData.BoundingRadius - 75
-            end
-        else
-            if self.ForceTarget == nil then
-                -- added - 33, 1/3 of teemo size. to counter sticky movement when enemy outside of AA range already. might need more if more cases are reported
-                self.OrbRange = myHero.AttackRange + myHero.CharData.BoundingRadius - 33
-            else
-                self.OrbRange = myHero.AttackRange + myHero.CharData.BoundingRadius +55
-            end
-        end
-        local LethalTempo		= myHero.BuffData:GetBuff("ASSETS/Perks/Styles/Precision/LethalTempo/LethalTempo.lua")
-        local Stacks			= LethalTempo.Count_Int
-        if self.OrbRange >= 300 then
-            if Stacks >= 6 then
-                self.OrbRange = self.OrbRange + 50
-            end
-        else
-            if Stacks >= 6 then
-                self.OrbRange = self.OrbRange + 50
-            end
-        end
-    end,
     OnTick = function(self)
         --myHero.BuffData:ShowAllBuffs()
-        -- local test = myHero.BuffData:GetBuff("zhonyasringshield")
-        -- print(test.Count_Alt)
-
+        --print(myHero.AttackInfo.Data.MissileSpeed)
+        --print("SpellInfo:", myHero:GetSpellManaCost())
+        --print(myHero.BuffData:GetBuff("Banners_Manager").Type)
+        --print(myHero.BuffData:GetBuff("apheliospbuffad").Count_Int)
         self.DrawTarget = nil
         self:GetTeamHasGP()
         self:GetForceTarget()
         self:GetChampionPrios()
         self:ManageAttackTimer()
         if GameHud.Minimized == false and GameHud.ChatOpen == false and self.Enabled == 1 then
-            self:GetAttackRange()
+            if myHero.ChampionName ~= "Zeri" then
+                self.OrbRange = myHero.AttackRange + myHero.CharData.BoundingRadius - 10
+            else
+                self.OrbRange = 500 + myHero.CharData.BoundingRadius - 10
+            end
             if Engine:IsKeyDown("HK_FLEE") then
-                if Engine:IsKeyDown("HK_ITEM6") then
-                    self:Safe_Flash()
-                end
-                if self:CanMove() then
-                    return self:IssueMove(self.MovePosition)    
-                end                
+                return self:Orbwalk(nil)                          
             end
             if Engine:IsKeyDown("HK_COMBO") then
-                if Engine:IsKeyDown("HK_ITEM6") then
-                    self:Safe_Flash()
-                end
                 local Target = nil
                 if myHero.ChampionName == "Caitlyn" then
                     self.count = 1
@@ -1763,7 +1488,7 @@ Orbwalker = {
                         if SourceID == myHero.Index and Missile.Name == "CaitlynPassiveMissile" then
                             --print(Missile.Name)
                             if ((os.clock() - self.CaitHSTimer) > 0.5 or (os.clock() - self.CaitHSTimer) < 0) then
-                                self.CaitHSTimer 	= os.clock()
+                                self.CaitHSTimer    = os.clock()
                                 table.insert(self.CaitHSCounts, self.count)
                             end
                         end
@@ -1782,13 +1507,9 @@ Orbwalker = {
                 if Target == nil then
                     Target = self:GetTarget("COMBO", self.OrbRange)
                 end
-                
                 return self:Orbwalk(Target)
             end   
             if Engine:IsKeyDown("HK_HARASS") then
-                if Engine:IsKeyDown("HK_ITEM6") then
-                    self:Safe_Flash()
-                end
                 local Target = nil
                 if myHero.ChampionName == "Caitlyn" then
                     Target = self:GetCaitlynHeadshotTarget()
@@ -1805,44 +1526,17 @@ Orbwalker = {
                 return self:Orbwalk(Target)            
             end   
             if Engine:IsKeyDown("HK_LASTHIT") then
-                if Engine:IsKeyDown("HK_ITEM6") then
-                    self:Safe_Flash()
-                end
                 return self:Orbwalk(self:GetTarget("LASTHIT", self.OrbRange))           
             end   
             if Engine:IsKeyDown("HK_LANECLEAR") then
-                if Engine:IsKeyDown("HK_ITEM6") then
-                    self:Safe_Flash()
-                end
                 return self:Orbwalk(self:GetTarget("LANECLEAR", self.OrbRange))           
-            end
-            if Engine:IsKeyDown("HK_ITEM6") then
-                self:Safe_Flash()
             end
         end
 
         self.BlockAttack  = 0
-        -- self.MovePosition = nil
+        self.MovePosition = nil
     end,
     OnDraw = function(self)
-        -- local Turrets = ObjectManager.TurretList
-        -- for _, T in pairs(Turrets) do
-        --     print(T:GetTypeFlag())
-        -- end
-
-        -- Render:DrawCircle(myHero.Position, 10, 0,255,0,255)
-
-        -- local TroyList = ObjectManager.TroyList
-        -- for _ , Troy in pairs(TroyList) do
-        --     local vecOut = Vector3.new()
-        --     if Render:World2Screen(Troy.Position, vecOut) then
-        --         print(Troy.Name)
-        --         Render:DrawString(Troy.Name, vecOut.x , vecOut.y , 255, 0, 0, 255)
-        --         Render:DrawString(Troy.Index, vecOut.x , vecOut.y+20 , 0, 255, 0, 255)
-        --         Render:DrawCircle(Troy.Position, 20, 0,255,0,255)
-        --     end
-        -- end
-        self:GetAttackRange()
         if self.DrawTarget ~= nil and self.DrawTargetCircle.Value == 1 then
             --print(self.DrawTarget.Name)
             local Bound = self.DrawTarget.CharData.BoundingRadius
